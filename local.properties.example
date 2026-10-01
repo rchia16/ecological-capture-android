@@ -1,0 +1,11 @@
+# Required to resolve Meta's GitHub Packages Maven artifacts.
+# Use a GitHub token with packages:read permission.
+github_token=github_pat_xxx
+
+# Optional in Meta DAT Developer Mode. For release-channel testing, fill these
+# with the values from Wearables Developer Center.
+mwdat_application_id=
+mwdat_client_token=
+
+# Android Studio normally writes sdk.dir itself.
+# sdk.dir=/path/to/Android/Sdk
