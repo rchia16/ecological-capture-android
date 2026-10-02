@@ -32,8 +32,25 @@ interface ClipDao {
     @Query("SELECT * FROM clips WHERE clipId = :clipId")
     suspend fun getClip(clipId: String): ClipEntity?
 
-    @Query("UPDATE clips SET approvalState = 'DELETED', updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId")
+    @Query("UPDATE clips SET updatedAtEpochMs = CASE WHEN approvalState = 'DELETED' THEN updatedAtEpochMs ELSE :updatedAtEpochMs END, approvalState = 'DELETED' WHERE clipId = :clipId")
     suspend fun markDeleted(clipId: String, updatedAtEpochMs: Long): Int
+
+    @Query("DELETE FROM annotations WHERE clipId = :clipId")
+    suspend fun eraseAnnotations(clipId: String)
+
+    @Query("DELETE FROM vlm_runs WHERE clipId = :clipId")
+    suspend fun eraseVlmRuns(clipId: String)
+
+    @Query("SELECT * FROM clips WHERE approvalState = 'DELETED'")
+    suspend fun deletedClips(): List<ClipEntity>
+
+    /** Commit deletion intent and text removal together, before touching media. */
+    @Transaction
+    suspend fun markDeletedAndEraseText(clipId: String, updatedAtEpochMs: Long) {
+        check(markDeleted(clipId, updatedAtEpochMs) == 1) { "Could not persist recording deletion" }
+        eraseAnnotations(clipId)
+        eraseVlmRuns(clipId)
+    }
 
     @Query("UPDATE clips SET reviewState = 'DEFERRED', approvalState = 'UNDECIDED', updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId AND approvalState = 'UNDECIDED' AND reviewState IN ('UNREVIEWED', 'DEFERRED')")
     suspend fun deferClip(clipId: String, updatedAtEpochMs: Long): Int
@@ -41,9 +58,9 @@ interface ClipDao {
     @Query("UPDATE clips SET reviewState = 'REVIEWED', approvalState = 'APPROVED', updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId AND approvalState = 'UNDECIDED' AND reviewState IN ('UNREVIEWED', 'DEFERRED')")
     suspend fun approveClip(clipId: String, updatedAtEpochMs: Long): Int
 
-    @Query("UPDATE clips SET reviewState = :reviewState, updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId")
+    @Query("UPDATE clips SET reviewState = :reviewState, updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId AND approvalState != 'DELETED'")
     suspend fun updateReviewState(clipId: String, reviewState: String, updatedAtEpochMs: Long)
 
-    @Query("UPDATE clips SET approvalState = :approvalState, updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId")
+    @Query("UPDATE clips SET approvalState = :approvalState, updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId AND approvalState != 'DELETED'")
     suspend fun updateApprovalState(clipId: String, approvalState: String, updatedAtEpochMs: Long)
 }

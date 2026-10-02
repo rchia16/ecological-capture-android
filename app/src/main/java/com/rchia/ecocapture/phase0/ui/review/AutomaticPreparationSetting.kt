@@ -21,7 +21,8 @@ fun AutomaticPreparationSetting(enabled: Boolean, saving: Boolean, error: String
             Text("Prepare AI suggestions automatically", fontSize = 18.sp, modifier = Modifier.weight(1f))
             Switch(checked = enabled, onCheckedChange = null, enabled = !saving)
         }
-        Text("Off by default. When enabled, opening a recording prepares one suggestion. " +
+        Text("Off by default. When enabled, all saved recordings without a description or AI suggestion are queued, including new recordings. " +
+            "One recording is prepared at a time. Existing requests are not duplicated. Failed or cancelled attempts are retried only when you request them or turn this setting on again. " +
             "You choose whether to review or use it. Regeneration is always your choice. " +
             "AI preparation runs on this phone and may take about 10 to 13 minutes. " +
             "Keep the app open unless background preparation is enabled below. " +

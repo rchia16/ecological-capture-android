@@ -46,6 +46,10 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
+            // Opt-in benchmark package keeps models, scheduling and results isolated from research data.
+            if (providers.gradleProperty("vlmBenchmark").orNull == "true") {
+                applicationIdSuffix = ".benchmark"
+            }
         }
         release {
             isMinifyEnabled = false

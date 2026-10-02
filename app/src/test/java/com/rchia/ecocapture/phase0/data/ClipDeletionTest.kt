@@ -20,13 +20,13 @@ class ClipDeletionTest {
     @get:Rule val folder = TemporaryFolder()
 
     @Test
-    fun deletionRemovesMediaBeforeTombstoneAndKeepsPathIdentity() = runBlocking {
+    fun deletionCommitsTombstoneBeforeMediaAndKeepsPathIdentity() = runBlocking {
         val dao = fixture()
         val video = File(dao.clip.videoPath)
         val metadata = File(checkNotNull(dao.clip.metadataPath))
         dao.beforeTombstone = {
-            assertFalse(video.exists())
-            assertFalse(metadata.exists())
+            assertTrue(video.exists())
+            assertTrue(metadata.exists())
         }
 
         RoomClipRepository(dao).deleteClip("clip-id")
@@ -39,7 +39,7 @@ class ClipDeletionTest {
     }
 
     @Test
-    fun mp4DeletionFailurePreservesMetadataAndDatabaseState() = runBlocking {
+    fun mp4DeletionFailureRetainsDeletionIntentAndMediaForRetry() = runBlocking {
         val dao = fixture()
         val repository = RoomClipRepository(dao, deleteFile = { false })
 
@@ -47,15 +47,15 @@ class ClipDeletionTest {
 
         assertTrue(File(dao.clip.videoPath).exists())
         assertTrue(File(checkNotNull(dao.clip.metadataPath)).exists())
-        assertEquals("UNDECIDED", dao.clip.approvalState)
-        assertEquals(0, dao.tombstoneCalls)
+        assertEquals("DELETED", dao.clip.approvalState)
+        assertEquals(1, dao.tombstoneCalls)
     }
 
     @Test
     fun verifiesFileDisappearanceEvenWhenDeleteReturnsTrue() = runBlocking {
         val dao = fixture()
         expectFailure { RoomClipRepository(dao, deleteFile = { true }).deleteClip("clip-id") }
-        assertEquals(0, dao.tombstoneCalls)
+        assertEquals(1, dao.tombstoneCalls)
         assertTrue(File(dao.clip.videoPath).exists())
     }
 
@@ -70,7 +70,7 @@ class ClipDeletionTest {
 
         assertFalse(File(dao.clip.videoPath).exists())
         assertTrue(File(checkNotNull(dao.clip.metadataPath)).exists())
-        assertEquals("UNDECIDED", dao.clip.approvalState)
+        assertEquals("DELETED", dao.clip.approvalState)
         RoomClipRepository(dao).deleteClip("clip-id")
         assertEquals("DELETED", dao.clip.approvalState)
         assertFalse(File(checkNotNull(dao.clip.metadataPath)).exists())
@@ -99,7 +99,7 @@ class ClipDeletionTest {
         dao.failTombstone = true
         expectFailure { RoomClipRepository(dao).deleteClip("clip-id") }
         assertEquals("UNDECIDED", dao.clip.approvalState)
-        assertFalse(File(dao.clip.videoPath).exists())
+        assertTrue(File(dao.clip.videoPath).exists())
         dao.failTombstone = false
         RoomClipRepository(dao).deleteClip("clip-id")
         assertEquals("DELETED", dao.clip.approvalState)
@@ -139,6 +139,9 @@ class ClipDeletionTest {
         var beforeTombstone: () -> Unit = { }
 
         override suspend fun getClip(clipId: String): ClipEntity? = clip.takeIf { it.clipId == clipId }
+        override suspend fun eraseAnnotations(clipId: String) = Unit
+        override suspend fun eraseVlmRuns(clipId: String) = Unit
+        override suspend fun deletedClips(): List<ClipEntity> = listOf(clip).filter { it.approvalState == "DELETED" }
         override suspend fun markDeleted(clipId: String, updatedAtEpochMs: Long): Int {
             beforeTombstone()
             if (failTombstone) throw IOException("Database unavailable")

@@ -36,14 +36,22 @@ fun DescriptionEditorScreen(
     val draft = state.draft ?: return
     var reviewing by remember { mutableStateOf(false) }
     var copyRequested by remember { mutableStateOf(false) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val savedText = remember { state.annotation?.text.orEmpty() }
+    val hasUnsavedChanges = draft.text != savedText || draft.parentVlmRunId != null
     val titleFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val close = { if (!state.isSaving && !ai.isUpdating) { onLeaveGeneration(); onCancel() } }
+    val requestBack = {
+        if (!state.isSaving && !ai.isUpdating) {
+            if (hasUnsavedChanges) { keyboard?.hide(); confirmDiscard = true } else close()
+        }
+    }
     BackHandler {
         if (reviewing && !ai.isUpdating) {
             onLeaveGeneration()
             reviewing = false
-        } else if (!reviewing) close()
+        } else if (!reviewing) requestBack()
     }
     LaunchedEffect(reviewing) { titleFocus.requestFocus() }
     LaunchedEffect(copyRequested, ai.isUpdating, draft.parentVlmRunId) {
@@ -121,7 +129,7 @@ fun DescriptionEditorScreen(
                         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (ai.isGenerating) {
-                                ReviewActionButton("CANCEL AI GENERATION", true, { onCancelGeneration(); reviewing = false })
+                                ReviewActionButton("CANCEL AI PREPARATION", true, { onCancelGeneration(); reviewing = false })
                             } else {
                                 ReviewActionButton("GENERATE AI SUGGESTION",
                                     !state.isSaving && !ai.isLoading && !ai.isUpdating && !isCaptureBusy, onGenerate)
@@ -135,13 +143,31 @@ fun DescriptionEditorScreen(
                             modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
                             Text("SAVE DESCRIPTION", fontSize = 18.sp)
                         }
-                        Button(onClick = close, enabled = !state.isSaving && !ai.isUpdating,
+                        Button(onClick = requestBack, enabled = !state.isSaving && !ai.isUpdating,
                             modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
-                            Text("CANCEL", fontSize = 18.sp)
+                            Text("BACK", fontSize = 18.sp)
                         }
                     }
                 }
             }
+        }
+        if (confirmDiscard) {
+            AlertDialog(
+                onDismissRequest = { confirmDiscard = false },
+                title = { Text("Discard changes?") },
+                text = { Text("Your description has unsaved changes.") },
+                confirmButton = {
+                    TextButton(onClick = { confirmDiscard = false }, modifier = Modifier.heightIn(min = 56.dp)) {
+                        Text("KEEP EDITING")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmDiscard = false; close() },
+                        enabled = !state.isSaving && !ai.isUpdating, modifier = Modifier.heightIn(min = 56.dp)) {
+                        Text("DISCARD CHANGES")
+                    }
+                },
+            )
         }
     }
 }

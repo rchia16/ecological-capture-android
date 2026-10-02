@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface VlmRunDao {
+    @Query("SELECT clipId FROM clips WHERE approvalState != 'DELETED' AND NOT EXISTS (SELECT 1 FROM annotations WHERE annotations.clipId = clips.clipId AND isCurrent = 1) AND NOT EXISTS (SELECT 1 FROM vlm_runs WHERE vlm_runs.clipId = clips.clipId) ORDER BY createdAtEpochMs, clipId")
+    fun observeAutomaticCandidates(): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(run: VlmRunEntity)
 

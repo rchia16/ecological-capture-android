@@ -112,7 +112,7 @@ class DescriptionEditor(
             } catch (_: Exception) {
                 if (session == selectedSession) {
                     mutableState.update { it.copy(isSaving = false,
-                        error = "Your description could not be saved. Your draft is still here. Try again, or cancel and reopen the editor.") }
+                        error = "Your description could not be saved. Your draft is still here. Try again, or choose Back to leave the editor.") }
                 }
             }
         }

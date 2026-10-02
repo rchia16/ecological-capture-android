@@ -16,9 +16,14 @@ import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -42,6 +47,29 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
     val preferenceSaving = mutablePreferenceSaving.asStateFlow()
     private val mutablePreferenceError = MutableStateFlow<String?>(null)
     val preferenceError = mutablePreferenceError.asStateFlow()
+    val automaticQueueStatus = background.automaticQueueStatus()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    init {
+        viewModelScope.launch {
+            combine(EcologicalCaptureDatabase.getInstance(application).vlmRunDao().observeAutomaticCandidates(),
+                automaticPreparationEnabled, chargingOnly) { candidates, enabled, charging ->
+                if (enabled) candidates to charging else emptyList<String>() to charging
+            }.collect { (candidates, charging) ->
+                for (clipId in candidates) {
+                    if (!automaticPreparationEnabled.value) break
+                    try { background.enqueue(clipId, automatic = true, chargingOnly = charging, onlyIfUnscheduled = true) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) {
+                        mutablePreferenceError.value = "Some AI suggestions could not be queued. Check background notification permission, or generate a suggestion from the description editor."
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    fun setAppForeground(visible: Boolean) = background.setAppForeground(visible)
 
     fun setBackgroundPreparationEnabled(enabled: Boolean) {
         if (enabled && !AiPreparationNotifications.allowed(getApplication())) {
@@ -50,7 +78,7 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         }
         updatePreparationPreference {
             aiPreferences.setBackgroundEnabled(enabled)
-            if (!enabled) background.cancelAllAndJoin()
+            if (!enabled) background.cancelManualAndJoin()
         }
     }
 
@@ -75,6 +103,11 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             try {
                 aiPreferences.setEnabled(enabled)
+                if (enabled) {
+                    val candidates = EcologicalCaptureDatabase.getInstance(getApplication()).vlmRunDao().observeAutomaticCandidates().first()
+                    for (clipId in candidates) background.enqueue(clipId, automatic = true,
+                        chargingOnly = chargingOnly.value, onlyIfUnscheduled = true, retryFinished = true)
+                }
                 if (!enabled) background.cancelAutomaticAndJoin()
                 if (!enabled && vlmReview.state.value.isAutomaticGeneration) vlmReview.cancel()
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -88,7 +121,12 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         val clip = current.clip ?: return
         if (clip.clipId != clipId || current.isSaving || !automaticPreparationEnabled.value ||
             clip.approvalState == com.rchia.ecocapture.phase0.domain.ApprovalState.DELETED) return
-        vlmReview.prepareAutomatically(clip.videoFile) { aiPreferences.claimFirstPreparation(clipId) }
+        val candidates = EcologicalCaptureDatabase.getInstance(getApplication()).vlmRunDao().observeAutomaticCandidates().first()
+        if (clipId in candidates) {
+            try { background.enqueue(clipId, automatic = true, chargingOnly = chargingOnly.value, onlyIfUnscheduled = true) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutablePreferenceError.value = "The AI suggestion could not be queued. You can still review and edit this recording." }
+        }
     }
 
     private val _uiState = MutableStateFlow(ClipReviewUiState())
@@ -172,8 +210,11 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         if (current.isSaving) return false
         _uiState.update { it.copy(isSaving = true, error = null) }
         return try {
-            vlmReview.cancelAndJoin()
-            repository.deleteClip(clip.clipId)
+            withContext(NonCancellable) {
+                vlmReview.cancelAndJoin()
+                repository.deleteClip(clip.clipId)
+                AiPreparationNotifications.clearReady(getApplication(), clip.clipId)
+            }
             true
         } catch (cancelled: CancellationException) {
             throw cancelled

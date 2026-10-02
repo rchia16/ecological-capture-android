@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-enum class VlmReviewPhase { IDLE, QUEUED, WAITING_CHARGE, WAITING_RECORDING, PREPARING, RUNNING, SUCCESS, ERROR, CANCELLED }
+enum class VlmReviewPhase { IDLE, QUEUED, WAITING_CHARGE, WAITING_RECORDING, WAITING_MEMORY, WAITING_APP, PREPARING, RUNNING, CANCELLING, SUCCESS, ERROR, CANCELLED }
 
 data class VlmReviewState(
     val phase: VlmReviewPhase = VlmReviewPhase.IDLE,
@@ -23,7 +23,8 @@ data class VlmReviewState(
     val isBackgroundGeneration: Boolean = false,
 ) {
     val isGenerating get() = phase in setOf(VlmReviewPhase.QUEUED, VlmReviewPhase.WAITING_CHARGE,
-        VlmReviewPhase.WAITING_RECORDING, VlmReviewPhase.PREPARING, VlmReviewPhase.RUNNING)
+        VlmReviewPhase.WAITING_RECORDING, VlmReviewPhase.WAITING_MEMORY, VlmReviewPhase.WAITING_APP, VlmReviewPhase.PREPARING,
+        VlmReviewPhase.RUNNING, VlmReviewPhase.CANCELLING)
     val isSuggestionResolved get() = run?.disposition in setOf(
         VlmDisposition.AMENDED.name, VlmDisposition.IGNORED.name,
     )
@@ -60,11 +61,11 @@ class VlmReviewWorkflow(
         mutableState.value = VlmReviewState()
         backgroundObservation = background?.let { controller -> scope.launch {
             controller.observe(clipId).collect { progress ->
-                if (progress != null && (allowBackground() || state.value.isBackgroundGeneration) &&
+                if (progress != null && (progress.automatic || allowBackground() || state.value.isBackgroundGeneration) &&
                     (state.value.isBackgroundGeneration || generation?.isActive != true)) update(selectedSession) {
                     it.copy(phase = progress.phase, error = progress.error,
                         isAutomaticGeneration = progress.automatic,
-                        isBackgroundGeneration = true)
+                        isBackgroundGeneration = allowBackground())
                 }
             }
         } }
@@ -165,11 +166,17 @@ class VlmReviewWorkflow(
         else -> "AI description could not be prepared. You can still write a description and review this recording."
     }
 
-    fun cancel() { generation?.cancel(); selectedClipId?.let { background?.cancel(it) } }
+    fun cancel() {
+        if (state.value.isGenerating) mutableState.update { it.copy(phase = VlmReviewPhase.CANCELLING) }
+        generation?.cancel()
+        selectedClipId?.let { background?.cancel(it) }
+    }
     fun cancelForeground() { if (!state.value.isBackgroundGeneration) generation?.cancel() }
     suspend fun cancelAndJoin() {
-        generation?.cancelAndJoin()
-        selectedClipId?.let { background?.cancelAndJoin(it) }
+        val clipId = selectedClipId
+        val foreground = generation
+        foreground?.cancelAndJoin()
+        clipId?.let { background?.cancelAndJoin(it) }
     }
 
     /** Called only by the visible text UI, never by generation completion or history loading. */

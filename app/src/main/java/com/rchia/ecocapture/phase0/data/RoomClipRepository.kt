@@ -46,6 +46,8 @@ class RoomClipRepository(
         // Once files start being removed, finish the tombstone even if the screen is disposed.
         withContext(Dispatchers.IO + NonCancellable) {
             val clip = dao.getClip(clipId) ?: throw IOException("Recording is unavailable.")
+            // A process death during file removal must never leave an active event or resurrect media.
+            dao.markDeletedAndEraseText(clipId, System.currentTimeMillis())
             val video = File(clip.videoPath)
             val metadata = clip.metadataPath?.let(::File)
                 ?: File(video.parentFile, "${video.nameWithoutExtension}.json").takeIf { it.exists() }
@@ -55,10 +57,18 @@ class RoomClipRepository(
             check(!video.exists() && (metadata == null || !metadata.exists())) {
                 "Recording files could not be removed."
             }
-            check(dao.markDeleted(clipId, System.currentTimeMillis()) == 1) {
-                "Could not persist recording deletion."
-            }
         }
+    }
+
+    /** Resume incomplete file removals and purge any historical deleted-event text. */
+    suspend fun resumePendingDeletions() {
+        var firstFailure: Exception? = null
+        dao.deletedClips().forEach { clip ->
+            try { deleteClip(clip.clipId) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (failure: Exception) { if (firstFailure == null) firstFailure = failure }
+        }
+        firstFailure?.let { throw it }
     }
 
     private fun removeAndVerify(file: File) {

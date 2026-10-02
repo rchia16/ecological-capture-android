@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,20 +36,22 @@ fun ReviewQueueScreen(
     viewModel: ReviewQueueViewModel,
     onBack: () -> Unit,
     onClipSelected: (ClipRecord) -> Unit,
-    automaticPreparationEnabled: Boolean,
-    preferenceSaving: Boolean,
-    preferenceError: String?,
-    onAutomaticPreparationChanged: (Boolean) -> Unit,
-    backgroundPreparationEnabled: Boolean,
-    chargingOnly: Boolean,
-    onBackgroundPreparationChanged: (Boolean) -> Unit,
-    onChargingOnlyChanged: (Boolean) -> Unit,
+    onSettings: () -> Unit,
+    automaticPreparationStatus: String? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
-                Text("REVIEW RECORDINGS", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text("REVIEW RECORDINGS", fontSize = 28.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.semantics { heading() })
+                Button(onClick = onSettings,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Text("SETTINGS", fontSize = 20.sp)
+                }
+                automaticPreparationStatus?.let { message ->
+                    Text(message, fontSize = 18.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                }
                 Text(
                     text = "${state.clips.size} recordings waiting",
                     modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
@@ -58,19 +61,7 @@ fun ReviewQueueScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        item(key = "automatic_preparation_setting") {
-                            AutomaticPreparationSetting(
-                                enabled = automaticPreparationEnabled,
-                                saving = preferenceSaving,
-                                error = preferenceError,
-                                onChanged = onAutomaticPreparationChanged,
-                            )
-                        }
                         if (state.isLoading) item { Text("Loading recordings...", fontSize = 19.sp) }
-                        item(key = "background_preparation_setting") {
-                            BackgroundPreparationSetting(backgroundPreparationEnabled, chargingOnly, preferenceSaving,
-                                onBackgroundPreparationChanged, onChargingOnlyChanged)
-                        }
                         state.error?.let { message ->
                             item { Text(message, fontSize = 19.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                         }

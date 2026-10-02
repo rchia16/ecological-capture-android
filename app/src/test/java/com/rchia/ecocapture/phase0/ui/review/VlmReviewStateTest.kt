@@ -7,7 +7,8 @@ class VlmReviewStateTest {
     @Test fun queuedWaitingPreparingAndRunningAreGenerationStates() {
         VlmReviewPhase.entries.forEach { phase ->
             assertEquals(phase in setOf(VlmReviewPhase.QUEUED, VlmReviewPhase.WAITING_CHARGE,
-                VlmReviewPhase.WAITING_RECORDING, VlmReviewPhase.PREPARING, VlmReviewPhase.RUNNING),
+                VlmReviewPhase.WAITING_RECORDING, VlmReviewPhase.WAITING_MEMORY, VlmReviewPhase.WAITING_APP,
+                VlmReviewPhase.PREPARING, VlmReviewPhase.RUNNING, VlmReviewPhase.CANCELLING),
                 VlmReviewState(phase = phase).isGenerating)
         }
     }

@@ -14,6 +14,8 @@ class LegacyClipReconciler(
     private val recordingsDirectory: File,
 ) {
     suspend fun reconcile() {
+        // Tombstones are durable deletion intents. Finish them before scanning saved media.
+        if (repository is RoomClipRepository) repository.resumePendingDeletions()
         val files = recordingsDirectory.listFiles { file ->
             file.isFile && file.extension.equals("mp4", ignoreCase = true)
         }.orEmpty()

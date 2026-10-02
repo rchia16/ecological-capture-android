@@ -224,7 +224,10 @@ fun ClipReviewScreen(
                         add(ReviewAction("REVIEW LATER", canDecide && !playbackReleased,
                             { scope.launch { if (viewModel.reviewLater()) onDeferred() } },
                         ))
-                        add(ReviewAction("DELETE", !state.isSaving && clip.approvalState != ApprovalState.DELETED,
+                        add(ReviewAction(if (clip.approvalState == ApprovalState.DELETED) "RETRY DELETE" else "DELETE",
+                            !state.isSaving && (clip.approvalState != ApprovalState.DELETED ||
+                                clip.videoFile.exists() || clip.metadataFile?.exists() == true ||
+                                java.io.File(clip.videoFile.parentFile, "${clip.videoFile.nameWithoutExtension}.json").exists()),
                             { confirmDelete = true },
                         ))
                     }

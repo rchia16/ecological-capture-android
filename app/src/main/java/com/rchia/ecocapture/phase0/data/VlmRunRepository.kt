@@ -9,12 +9,12 @@ import java.util.UUID
 
 class VlmRunRepository(private val database: EcologicalCaptureDatabase) {
     suspend fun save(result: VlmResult.Success, runId: String = UUID.randomUUID().toString()): VlmRunEntity = database.withTransaction {
+        val clip = requireNotNull(database.clipDao().getClip(result.clipId)) { "Clip not found" }
+        require(clip.approvalState != "DELETED") { "Clip is deleted" }
         database.vlmRunDao().getRun(runId)?.let {
             require(it.clipId == result.clipId) { "VLM request ID belongs to another recording" }
             return@withTransaction it
         }
-        val clip = requireNotNull(database.clipDao().getClip(result.clipId)) { "Clip not found" }
-        require(clip.approvalState != "DELETED") { "Clip is deleted" }
         require(result.rawOutput.isNotBlank() && result.description.isNotBlank()) { "Empty VLM output" }
         require(result.promptVersion.isNotBlank() && result.modelInfo.modelId.isNotBlank()) { "Missing VLM provenance" }
         require(result.inferenceDurationMs >= 0) { "Invalid inference duration" }

@@ -1,6 +1,22 @@
 # Qwen3-VL Android runtime
 
+## Checkpoint 8 recovery hardening
+
+Deletion now atomically purges annotation/VLM text and commits a tombstone before removing files. Startup resumes incomplete removals; deleted clips cannot be restored by later decision updates. Background cancellation survives review exit and reports cleanup in progress. Critical memory pressure unloads and defers background inference; UI hiding alone does not cancel it. Missing persisted results are not reported as usable successes.
+
+Debug/release builds and 52 unit tests per variant pass. The final Pixel 9 suite passed 62 tests with five opt-in skips; eleven isolated system-recovery checks and actual native cancellation passed separately. Participant records were unchanged in pre/post comparison. See [Checkpoint 8 report](PHASE2_CHECKPOINT8_REPORT.md) for recovery limits and [Checkpoint 9 report](PHASE2_CHECKPOINT9_REPORT.md) for the seven-state provenance matrix, performance distribution and remaining physical/TalkBack checks. Phase 2 completion awaits those hands-on checks.
+
 ## Optional background preparation
+
+### Automatic batch preparation update (2026-10-02)
+
+Enabling automatic preparation now queues every active saved clip without a current participant description or any existing VLM run, rather than requiring each clip to be opened. New eligible clips are observed through Room and queued while the preference remains enabled. Unique per-clip requests prevent duplicates; the execution gate still permits one model at a time. Settings and Review Recordings show the pending/preparing count. Explicitly enabling the switch again can retry finished failed/cancelled requests; ordinary database updates do not silently retry those requests. Workers recheck eligibility before loading so a description saved while waiting is respected.
+
+Automatic batch requests are durable even when background preparation is off. In that mode inference requires the app to be visible; leaving the app cancels/unloads the attempt and defers it until reopening. Optional background preparation and notification permission remain separate. Charging constraints apply to requests submitted with background preparation enabled; changing preferences affects future requests. Android scheduling/backoff can delay starting or restarting an attempt. Turning automatic preparation off cancels automatic requests; turning background preparation off cancels manual background requests and restricts automatic execution to the visible app.
+
+This update compiled in debug/release and was installed with replacement install. No new tests were added or run for this update; the recovery/provenance test results below describe the preceding checkpoint build. Batch execution, foreground pause/resume and charging behavior require the manual checks. Raw output/provenance and participant amendments remain separate; batch generation never writes a participant description or changes a decision.
+
+The three preparation preferences now live in **Review Recordings > Settings > AI descriptions**. Settings uses labeled, whole-row switches, a scrollable content area and a fixed Back button. Charging-only remains visible but disabled when background preparation is off. Existing preferences and permission/cancellation behavior are preserved; changes save immediately.
 
 Participant review supports optional WorkManager foreground-worker preparation with a Cancel notification and brief readiness notification. Review Recordings contains background preparation (off by default) and charging-only (on by default) preferences. Background work can continue after leaving review and with the screen off; charging and battery constraints can defer it. Foreground generation remains available when background preparation is off.
 

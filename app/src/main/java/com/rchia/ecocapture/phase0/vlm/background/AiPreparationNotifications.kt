@@ -41,7 +41,10 @@ object AiPreparationNotifications {
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentTitle(title)
-            .setContentText(if (ongoing) "You can leave the app. Cancel stops this preparation." else "Open Review Recordings to review the suggestion.")
+            .setContentText(if (!ongoing) "Open Review Recordings to review the suggestion."
+                else if (com.rchia.ecocapture.phase0.data.AiSuggestionPreferences(context).backgroundEnabled.value)
+                    "You can leave the app. Cancel stops this preparation."
+                else "Keep this app open. Cancel stops this preparation.")
             .setContentIntent(open).setOngoing(ongoing).setAutoCancel(!ongoing)
             .setOnlyAlertOnce(true).setVisibility(Notification.VISIBILITY_PRIVATE)
             .apply {
@@ -53,5 +56,9 @@ object AiPreparationNotifications {
     fun ready(context: Context, clipId: String) {
         if (allowed(context)) context.getSystemService(NotificationManager::class.java)
             .notify("ai-ready-$clipId", 7102, notification(context, "AI suggestion ready", false))
+    }
+
+    fun clearReady(context: Context, clipId: String) {
+        context.getSystemService(NotificationManager::class.java).cancel("ai-ready-$clipId", 7102)
     }
 }

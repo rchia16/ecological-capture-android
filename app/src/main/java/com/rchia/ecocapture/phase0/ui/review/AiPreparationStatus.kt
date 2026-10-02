@@ -29,8 +29,11 @@ fun AiPreparationStatus(state: VlmReviewState, onCancel: () -> Unit,
 }
 
 val VlmReviewState.preparationMessage: String get() = when (phase) {
+    VlmReviewPhase.WAITING_APP -> "AI suggestion queued. Keep this app open to prepare it, or allow background preparation in Settings. Android may delay preparation."
     VlmReviewPhase.WAITING_CHARGE -> "AI suggestion queued. Waiting for this phone to charge. You can leave the app or cancel."
     VlmReviewPhase.WAITING_RECORDING -> "AI suggestion paused for recording. Preparation will restart later."
+    VlmReviewPhase.WAITING_MEMORY -> "AI suggestion paused because this phone is low on memory. Preparation will restart later."
+    VlmReviewPhase.CANCELLING -> "Stopping AI preparation and releasing memory. This may take some time."
     VlmReviewPhase.QUEUED -> "AI suggestion queued. One recording is prepared at a time. Android may delay preparation."
     VlmReviewPhase.PREPARING -> "Preparing AI suggestion. This may take some time."
     else -> "Generating AI description. This may take about 10 to 13 minutes. " +

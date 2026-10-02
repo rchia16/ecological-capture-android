@@ -26,6 +26,7 @@ import com.rchia.ecocapture.phase0.ui.review.ReviewQueueScreen
 import com.rchia.ecocapture.phase0.ui.review.ReviewQueueViewModel
 import com.rchia.ecocapture.phase0.ui.review.ClipReviewScreen
 import com.rchia.ecocapture.phase0.ui.review.ClipReviewViewModel
+import com.rchia.ecocapture.phase0.ui.review.AiSettingsScreen
 import com.rchia.ecocapture.phase0.vlm.background.AiPreparationNotifications
 import com.rchia.ecocapture.phase0.domain.ClipRecord
 import kotlin.coroutines.resume
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
     private val reviewQueueViewModel: ReviewQueueViewModel by viewModels()
     private val clipReviewViewModel: ClipReviewViewModel by viewModels()
     private var showingReviewQueue by mutableStateOf(false)
+    private var showingAiSettings by mutableStateOf(false)
     private var selectedClip by mutableStateOf<ClipRecord?>(null)
     private val notificationPermissionLauncher = registerForActivityResult(RequestPermission()) {
         clipReviewViewModel.setBackgroundPreparationEnabled(true)
@@ -65,6 +67,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == AiPreparationNotifications.OPEN_REVIEW) {
+            showingAiSettings = false
             selectedClip = null
             showingReviewQueue = true
         }
@@ -106,13 +109,14 @@ class MainActivity : ComponentActivity() {
         if (intent.action == AiPreparationNotifications.OPEN_REVIEW) showingReviewQueue = true
         setContent {
             val queueState by reviewQueueViewModel.uiState.collectAsStateWithLifecycle()
+            val automaticPreparationStatus by clipReviewViewModel.automaticQueueStatus.collectAsStateWithLifecycle()
             val captureBusy by remember(viewModel) {
                 viewModel.uiState.map { it.isPreparingRecording || it.isRecordingRequested || it.isRecordingConfirmed || it.isFinalizingRecording }
                     .distinctUntilChanged()
             }.collectAsStateWithLifecycle(initialValue = viewModel.uiState.value.let {
                 it.isPreparingRecording || it.isRecordingRequested || it.isRecordingConfirmed || it.isFinalizingRecording
             })
-            BackHandler(enabled = showingReviewQueue && selectedClip == null) {
+            BackHandler(enabled = showingReviewQueue && selectedClip == null && !showingAiSettings) {
                 showingReviewQueue = false
             }
             if (selectedClip != null) {
@@ -135,22 +139,29 @@ class MainActivity : ComponentActivity() {
                     onError = viewModel::onReviewError,
                     onPlaybackStateChanged = viewModel::onPlaybackChanged,
                 )
-            } else if (showingReviewQueue) {
+            } else if (showingAiSettings) {
                 val automaticPreparation by clipReviewViewModel.automaticPreparationEnabled.collectAsStateWithLifecycle()
                 val preferenceSaving by clipReviewViewModel.preferenceSaving.collectAsStateWithLifecycle()
                 val preferenceError by clipReviewViewModel.preferenceError.collectAsStateWithLifecycle()
                 val backgroundPreparation by clipReviewViewModel.backgroundPreparationEnabled.collectAsStateWithLifecycle()
                 val chargingOnly by clipReviewViewModel.chargingOnly.collectAsStateWithLifecycle()
-                ReviewQueueScreen(
-                    viewModel = reviewQueueViewModel,
+                AiSettingsScreen(
+                    automaticPreparationStatus = automaticPreparationStatus,
                     automaticPreparationEnabled = automaticPreparation,
-                    preferenceSaving = preferenceSaving,
-                    preferenceError = preferenceError,
+                    saving = preferenceSaving,
+                    error = preferenceError,
                     onAutomaticPreparationChanged = clipReviewViewModel::setAutomaticPreparationEnabled,
                     backgroundPreparationEnabled = backgroundPreparation,
                     chargingOnly = chargingOnly,
                     onBackgroundPreparationChanged = ::changeBackgroundPreparation,
                     onChargingOnlyChanged = clipReviewViewModel::setChargingOnly,
+                    onBack = { showingAiSettings = false },
+                )
+            } else if (showingReviewQueue) {
+                ReviewQueueScreen(
+                    automaticPreparationStatus = automaticPreparationStatus,
+                    viewModel = reviewQueueViewModel,
+                    onSettings = { showingAiSettings = true },
                     onBack = { showingReviewQueue = false },
                     onClipSelected = {
                         clipReviewViewModel.selectClip(it.clipId)
@@ -172,10 +183,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        clipReviewViewModel.setAppForeground(true)
         if (!startupRequested) {
             startupRequested = true
             androidPermissionsLauncher.launch(REQUIRED_PERMISSIONS)
         }
+    }
+
+    override fun onStop() {
+        clipReviewViewModel.setAppForeground(false)
+        super.onStop()
     }
 
     private fun initializeWearables() {
