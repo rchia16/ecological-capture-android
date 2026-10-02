@@ -29,6 +29,7 @@ import com.rchia.ecocapture.phase0.data.LegacyClipReconciler
 import com.rchia.ecocapture.phase0.data.RoomClipRepository
 import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
 import com.rchia.ecocapture.phase0.feedback.FeedbackController
+import com.rchia.ecocapture.phase0.vlm.VlmExecutionGate
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,6 +57,7 @@ data class Phase0UiState(
     val frameWidth: Int = 0,
     val frameHeight: Int = 0,
     val isRecordingRequested: Boolean = false,
+    val isPreparingRecording: Boolean = false,
     val isRecordingConfirmed: Boolean = false,
     val isFinalizingRecording: Boolean = false,
     val recordingElapsedSeconds: Long = 0L,
@@ -71,7 +73,7 @@ data class Phase0UiState(
         get() = streamState == StreamState.STREAMING && hasReceivedFirstFrame
 
     val canRecord: Boolean
-        get() = isCameraReady && !isRecordingRequested && !isFinalizingRecording
+        get() = isCameraReady && !isPreparingRecording && !isRecordingRequested && !isFinalizingRecording
 }
 
 class Phase0ViewModel(application: Application) : AndroidViewModel(application) {
@@ -112,6 +114,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     private var streamErrorJob: Job? = null
     private var frameJob: Job? = null
     private var recordingTimerJob: Job? = null
+    private var recordingPreparationJob: Job? = null
 
     private val frameDispatcher = Dispatchers.Default.limitedParallelism(1)
     private var fpsWindowStartMs = 0L
@@ -422,6 +425,20 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
 
     fun startRecording() {
         if (!_uiState.value.canRecord) return
+        _uiState.update { it.copy(isPreparingRecording = true,
+            status = "Preparing recording. Waiting for AI preparation to stop.") }
+        recordingPreparationJob = viewModelScope.launch {
+            try {
+                VlmExecutionGate.reserveForCapture()
+                if (_uiState.value.isCameraReady && !_uiState.value.isRecordingRequested && !_uiState.value.isFinalizingRecording) armRecording()
+            } finally {
+                _uiState.update { it.copy(isPreparingRecording = false) }
+                if (!_uiState.value.isRecordingRequested && !_uiState.value.isFinalizingRecording) VlmExecutionGate.releaseCapture()
+            }
+        }
+    }
+
+    private fun armRecording() {
         recorder.arm()
             .onSuccess {
                 _uiState.update {
@@ -485,7 +502,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            when (val result = recorder.stop()) {
+            try { when (val result = recorder.stop()) {
                 is RecordingResult.Completed -> onRecordingSaved(result, reason)
                 RecordingResult.NoVideo -> {
                     val message = "Recording stopped before a usable video frame was written."
@@ -510,7 +527,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     feedback.attention(message)
                 }
-            }
+            } } finally { VlmExecutionGate.releaseCapture() }
         }
     }
 
@@ -542,6 +559,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun stopCamera() {
+        recordingPreparationJob?.cancel()
         if (_uiState.value.isRecordingRequested) {
             finishRecording("Camera stopped")
         }
@@ -575,12 +593,14 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     override fun onCleared() {
+        recordingPreparationJob?.cancel()
         recordingTimerJob?.cancel()
         if (_uiState.value.isRecordingRequested) {
             runCatching { recorder.stop() }
         } else {
             recorder.abort()
         }
+        VlmExecutionGate.releaseCapture()
         cleanupCameraReferences()
         runCatching { session?.stop() }
         session = null

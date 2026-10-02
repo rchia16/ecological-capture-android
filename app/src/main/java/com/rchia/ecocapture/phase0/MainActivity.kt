@@ -2,16 +2,21 @@ package com.rchia.ecocapture.phase0
 
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.os.Bundle
+import android.os.Build
+import android.content.Intent
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.Permission
@@ -21,12 +26,15 @@ import com.rchia.ecocapture.phase0.ui.review.ReviewQueueScreen
 import com.rchia.ecocapture.phase0.ui.review.ReviewQueueViewModel
 import com.rchia.ecocapture.phase0.ui.review.ClipReviewScreen
 import com.rchia.ecocapture.phase0.ui.review.ClipReviewViewModel
+import com.rchia.ecocapture.phase0.vlm.background.AiPreparationNotifications
 import com.rchia.ecocapture.phase0.domain.ClipRecord
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 class MainActivity : ComponentActivity() {
 
@@ -44,6 +52,23 @@ class MainActivity : ComponentActivity() {
     private val clipReviewViewModel: ClipReviewViewModel by viewModels()
     private var showingReviewQueue by mutableStateOf(false)
     private var selectedClip by mutableStateOf<ClipRecord?>(null)
+    private val notificationPermissionLauncher = registerForActivityResult(RequestPermission()) {
+        clipReviewViewModel.setBackgroundPreparationEnabled(true)
+    }
+
+    private fun changeBackgroundPreparation(enabled: Boolean) {
+        if (enabled && Build.VERSION.SDK_INT >= 33 && checkSelfPermission(POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(POST_NOTIFICATIONS)
+        } else clipReviewViewModel.setBackgroundPreparationEnabled(enabled)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == AiPreparationNotifications.OPEN_REVIEW) {
+            selectedClip = null
+            showingReviewQueue = true
+        }
+    }
 
     private val androidPermissionsLauncher =
         registerForActivityResult(RequestMultiplePermissions()) { result ->
@@ -78,14 +103,22 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.action == AiPreparationNotifications.OPEN_REVIEW) showingReviewQueue = true
         setContent {
             val queueState by reviewQueueViewModel.uiState.collectAsStateWithLifecycle()
+            val captureBusy by remember(viewModel) {
+                viewModel.uiState.map { it.isPreparingRecording || it.isRecordingRequested || it.isRecordingConfirmed || it.isFinalizingRecording }
+                    .distinctUntilChanged()
+            }.collectAsStateWithLifecycle(initialValue = viewModel.uiState.value.let {
+                it.isPreparingRecording || it.isRecordingRequested || it.isRecordingConfirmed || it.isFinalizingRecording
+            })
             BackHandler(enabled = showingReviewQueue && selectedClip == null) {
                 showingReviewQueue = false
             }
             if (selectedClip != null) {
                 ClipReviewScreen(
                     viewModel = clipReviewViewModel,
+                    isCaptureBusy = captureBusy,
                     onBack = { selectedClip = null },
                     onDeferred = {
                         viewModel.onClipDeferred()
@@ -103,8 +136,21 @@ class MainActivity : ComponentActivity() {
                     onPlaybackStateChanged = viewModel::onPlaybackChanged,
                 )
             } else if (showingReviewQueue) {
+                val automaticPreparation by clipReviewViewModel.automaticPreparationEnabled.collectAsStateWithLifecycle()
+                val preferenceSaving by clipReviewViewModel.preferenceSaving.collectAsStateWithLifecycle()
+                val preferenceError by clipReviewViewModel.preferenceError.collectAsStateWithLifecycle()
+                val backgroundPreparation by clipReviewViewModel.backgroundPreparationEnabled.collectAsStateWithLifecycle()
+                val chargingOnly by clipReviewViewModel.chargingOnly.collectAsStateWithLifecycle()
                 ReviewQueueScreen(
                     viewModel = reviewQueueViewModel,
+                    automaticPreparationEnabled = automaticPreparation,
+                    preferenceSaving = preferenceSaving,
+                    preferenceError = preferenceError,
+                    onAutomaticPreparationChanged = clipReviewViewModel::setAutomaticPreparationEnabled,
+                    backgroundPreparationEnabled = backgroundPreparation,
+                    chargingOnly = chargingOnly,
+                    onBackgroundPreparationChanged = ::changeBackgroundPreparation,
+                    onChargingOnlyChanged = clipReviewViewModel::setChargingOnly,
                     onBack = { showingReviewQueue = false },
                     onClipSelected = {
                         clipReviewViewModel.selectClip(it.clipId)

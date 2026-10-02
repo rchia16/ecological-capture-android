@@ -35,6 +35,14 @@ fun ReviewQueueScreen(
     viewModel: ReviewQueueViewModel,
     onBack: () -> Unit,
     onClipSelected: (ClipRecord) -> Unit,
+    automaticPreparationEnabled: Boolean,
+    preferenceSaving: Boolean,
+    preferenceError: String?,
+    onAutomaticPreparationChanged: (Boolean) -> Unit,
+    backgroundPreparationEnabled: Boolean,
+    chargingOnly: Boolean,
+    onBackgroundPreparationChanged: (Boolean) -> Unit,
+    onChargingOnlyChanged: (Boolean) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     MaterialTheme {
@@ -50,7 +58,19 @@ fun ReviewQueueScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        item(key = "automatic_preparation_setting") {
+                            AutomaticPreparationSetting(
+                                enabled = automaticPreparationEnabled,
+                                saving = preferenceSaving,
+                                error = preferenceError,
+                                onChanged = onAutomaticPreparationChanged,
+                            )
+                        }
                         if (state.isLoading) item { Text("Loading recordings...", fontSize = 19.sp) }
+                        item(key = "background_preparation_setting") {
+                            BackgroundPreparationSetting(backgroundPreparationEnabled, chargingOnly, preferenceSaving,
+                                onBackgroundPreparationChanged, onChargingOnlyChanged)
+                        }
                         state.error?.let { message ->
                             item { Text(message, fontSize = 19.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
                         }

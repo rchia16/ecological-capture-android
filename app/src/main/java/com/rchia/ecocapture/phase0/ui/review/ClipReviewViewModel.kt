@@ -5,6 +5,13 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rchia.ecocapture.phase0.data.RoomClipRepository
+import com.rchia.ecocapture.phase0.data.AnnotationRepository
+import com.rchia.ecocapture.phase0.data.VlmRunRepository
+import com.rchia.ecocapture.phase0.data.AiSuggestionPreferences
+import com.rchia.ecocapture.phase0.vlm.VlmEngineFactory
+import com.rchia.ecocapture.phase0.vlm.VlmRuntimeMode
+import com.rchia.ecocapture.phase0.vlm.background.BackgroundAiPreparation
+import com.rchia.ecocapture.phase0.vlm.background.AiPreparationNotifications
 import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +23,73 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ClipReviewViewModel(application: Application) : AndroidViewModel(application) {
+    private val aiPreferences = AiSuggestionPreferences(application)
+    private val background = BackgroundAiPreparation.get(application)
+    val backgroundPreparationEnabled = aiPreferences.backgroundEnabled
+    val chargingOnly = aiPreferences.chargingOnly
     private val repository = RoomClipRepository(EcologicalCaptureDatabase.getInstance(application).clipDao())
+    val descriptionEditor = DescriptionEditor(
+        AnnotationRepository(EcologicalCaptureDatabase.getInstance(application)), viewModelScope,
+    )
+    val vlmReview = VlmReviewWorkflow(
+        VlmRunRepository(EcologicalCaptureDatabase.getInstance(application)),
+        VlmEngineFactory.create(application, VlmRuntimeMode.QWEN_PARTICIPANT), descriptionEditor, viewModelScope,
+        background = background, allowBackground = { backgroundPreparationEnabled.value },
+        chargingOnly = { chargingOnly.value },
+    )
+    val automaticPreparationEnabled = aiPreferences.enabled
+    private val mutablePreferenceSaving = MutableStateFlow(false)
+    val preferenceSaving = mutablePreferenceSaving.asStateFlow()
+    private val mutablePreferenceError = MutableStateFlow<String?>(null)
+    val preferenceError = mutablePreferenceError.asStateFlow()
+
+    fun setBackgroundPreparationEnabled(enabled: Boolean) {
+        if (enabled && !AiPreparationNotifications.allowed(getApplication())) {
+            mutablePreferenceError.value = "Allow notifications to use background AI preparation. You can still generate while reviewing."
+            return
+        }
+        updatePreparationPreference {
+            aiPreferences.setBackgroundEnabled(enabled)
+            if (!enabled) background.cancelAllAndJoin()
+        }
+    }
+
+    fun setChargingOnly(enabled: Boolean) = updatePreparationPreference { aiPreferences.setChargingOnly(enabled) }
+
+    private fun updatePreparationPreference(change: suspend () -> Unit) {
+        if (mutablePreferenceSaving.value) return
+        mutablePreferenceSaving.value = true
+        mutablePreferenceError.value = null
+        viewModelScope.launch {
+            try { change() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutablePreferenceError.value = "The AI preparation preference could not be saved. Please try again." }
+            finally { mutablePreferenceSaving.value = false }
+        }
+    }
+
+    fun setAutomaticPreparationEnabled(enabled: Boolean) {
+        if (mutablePreferenceSaving.value) return
+        mutablePreferenceSaving.value = true
+        mutablePreferenceError.value = null
+        viewModelScope.launch {
+            try {
+                aiPreferences.setEnabled(enabled)
+                if (!enabled) background.cancelAutomaticAndJoin()
+                if (!enabled && vlmReview.state.value.isAutomaticGeneration) vlmReview.cancel()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutablePreferenceError.value = "The AI preparation preference could not be saved. Please try again." }
+            finally { mutablePreferenceSaving.value = false }
+        }
+    }
+
+    suspend fun prepareSuggestionAutomatically(clipId: String) {
+        val current = _uiState.value
+        val clip = current.clip ?: return
+        if (clip.clipId != clipId || current.isSaving || !automaticPreparationEnabled.value ||
+            clip.approvalState == com.rchia.ecocapture.phase0.domain.ApprovalState.DELETED) return
+        vlmReview.prepareAutomatically(clip.videoFile) { aiPreferences.claimFirstPreparation(clipId) }
+    }
 
     private val _uiState = MutableStateFlow(ClipReviewUiState())
     val uiState = _uiState.asStateFlow()
@@ -24,6 +97,8 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
 
     fun selectClip(clipId: String) {
         observation?.cancel()
+        descriptionEditor.selectClip(clipId)
+        vlmReview.selectClip(clipId)
         _uiState.value = ClipReviewUiState()
         observation = viewModelScope.launch {
             try {
@@ -97,6 +172,7 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         if (current.isSaving) return false
         _uiState.update { it.copy(isSaving = true, error = null) }
         return try {
+            vlmReview.cancelAndJoin()
             repository.deleteClip(clip.clipId)
             true
         } catch (cancelled: CancellationException) {
