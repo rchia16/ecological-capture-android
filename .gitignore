@@ -33,3 +33,8 @@ replay_pid*
 
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
+
+# Checkpoint 1 downloaded tools/references, disposable keys and local proof artifacts.
+tools/phase3-protocol/artifacts/
+# FileSender account configuration can contain API credentials; never track it.
+filesender.py.ini
