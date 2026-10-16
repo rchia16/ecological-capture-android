@@ -1,0 +1,46 @@
+Bootstrap: docker
+From: python:3.14-slim-bookworm
+
+%files
+    server/ecocapture_gateway /opt/ecocapture/server/ecocapture_gateway
+    server/requirements.lock /opt/ecocapture/server/requirements.lock
+    server/pyproject.toml /opt/ecocapture/server/pyproject.toml
+    server/README.md /opt/ecocapture/server/README.md
+    server/tests /opt/ecocapture/server/tests
+    server/deployment/gb10 /opt/ecocapture/server/deployment/gb10
+    documentation/schemas /opt/ecocapture/documentation/schemas
+    documentation/PHASE3_GATEWAY_API.md /opt/ecocapture/documentation/PHASE3_GATEWAY_API.md
+    documentation/PHASE3_CHECKPOINT4_REPORT.md /opt/ecocapture/documentation/PHASE3_CHECKPOINT4_REPORT.md
+    documentation/PHASE3_OUTSTANDING_CHECKS.md /opt/ecocapture/documentation/PHASE3_OUTSTANDING_CHECKS.md
+    server/deployment/gb10/container_runtime.py /opt/ecocapture/container_runtime.py
+
+%post
+    set -eu
+    apt-get update
+    apt-get install -y --no-install-recommends nginx openssl ca-certificates
+    python -m pip install --no-cache-dir -r /opt/ecocapture/server/requirements.lock
+    python -m pip check
+    mkdir -p /gateway-config /gateway-state
+    chmod -R a-w /opt/ecocapture
+
+%environment
+    export PYTHONPATH=/opt/ecocapture/server
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export OTEL_SDK_DISABLED=true
+
+%runscript
+    exec python -B /opt/ecocapture/container_runtime.py "$@"
+
+%test
+    python -m pip check
+    python -B -W error::ResourceWarning -m unittest discover -s /opt/ecocapture/server/tests -v
+
+%labels
+    Purpose "Checkpoint 4 synthetic-only mock gateway; no inference or FileSender"
+    Target "GB10 Linux ARM64; native build required"
+
+%help
+    Run via deployment/gb10/run.sh with private external config and state binds.
+    Build from the bundle root so relative %files paths are correct.
+    Host Tailscale provides TLS; this image contains only loopback nginx + gateway.

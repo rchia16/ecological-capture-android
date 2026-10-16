@@ -1,0 +1,300 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "ecocapture.event.v1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "previous_snapshot_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "study_participant_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
+    },
+    "clip_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "created_at_epoch_ms": {
+          "type": "integer"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sample_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "created_by_app_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "created_at_epoch_ms",
+        "duration_ms",
+        "width",
+        "height",
+        "sample_count",
+        "created_by_app_version"
+      ],
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "review_state": {
+          "const": "REVIEWED"
+        },
+        "approval_state": {
+          "const": "APPROVED"
+        },
+        "approved_at_epoch_ms": {
+          "type": "null"
+        },
+        "updated_at_epoch_ms": {
+          "type": "integer"
+        },
+        "snapshot_created_at_epoch_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "review_state",
+        "approval_state",
+        "approved_at_epoch_ms",
+        "updated_at_epoch_ms",
+        "snapshot_created_at_epoch_ms"
+      ],
+      "additionalProperties": false
+    },
+    "participant_annotations": {
+      "type": "object",
+      "properties": {
+        "current_annotation_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "annotation_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "source": {
+                "enum": [
+                  "PARTICIPANT",
+                  "PARTICIPANT_AMENDMENT"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "created_at_epoch_ms": {
+                "type": "integer"
+              },
+              "supersedes_annotation_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "parent_vlm_run_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "is_current": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "annotation_id",
+              "source",
+              "text",
+              "created_at_epoch_ms",
+              "supersedes_annotation_id",
+              "parent_vlm_run_id",
+              "is_current"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "current_annotation_id",
+        "revisions"
+      ],
+      "additionalProperties": false
+    },
+    "vlm_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "vlm_run_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "model_id": {
+            "type": "string"
+          },
+          "model_quant": {
+            "type": "string"
+          },
+          "language_model_sha256": {
+            "type": "string"
+          },
+          "mmproj_sha256": {
+            "type": "string"
+          },
+          "runtime_name": {
+            "type": "string"
+          },
+          "runtime_commit": {
+            "type": "string"
+          },
+          "prompt_version": {
+            "type": "string"
+          },
+          "generated_at_epoch_ms": {
+            "type": "integer"
+          },
+          "first_presented_at_epoch_ms": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "inference_duration_ms": {
+            "type": "integer"
+          },
+          "frame_sampling_json": {
+            "type": "string"
+          },
+          "generation_config_json": {
+            "type": "string"
+          },
+          "raw_output": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "disposition": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vlm_run_id",
+          "model_id",
+          "model_quant",
+          "language_model_sha256",
+          "mmproj_sha256",
+          "runtime_name",
+          "runtime_commit",
+          "prompt_version",
+          "generated_at_epoch_ms",
+          "first_presented_at_epoch_ms",
+          "inference_duration_ms",
+          "frame_sampling_json",
+          "generation_config_json",
+          "raw_output",
+          "description",
+          "disposition"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "app_version": {
+          "type": "string"
+        },
+        "exported_at_epoch_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "app_version",
+        "exported_at_epoch_ms"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "event_id",
+    "snapshot_id",
+    "previous_snapshot_id",
+    "study_participant_code",
+    "clip_id",
+    "capture",
+    "review",
+    "participant_annotations",
+    "vlm_runs",
+    "export"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ecocapture:event:v1"
+}

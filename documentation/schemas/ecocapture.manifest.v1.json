@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "ecocapture.manifest.v1"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "created_at_epoch_ms": {
+      "type": "integer"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "enum": [
+              "video.mp4",
+              "event.json"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "size_bytes",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "hash_algorithm": {
+      "const": "SHA-256"
+    },
+    "manifest_version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "schema",
+    "event_id",
+    "snapshot_id",
+    "created_at_epoch_ms",
+    "files",
+    "hash_algorithm",
+    "manifest_version"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:ecocapture:manifest:v1"
+}

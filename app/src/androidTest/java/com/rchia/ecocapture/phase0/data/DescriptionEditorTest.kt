@@ -37,7 +37,7 @@ class DescriptionEditorTest {
 
     private fun open() {
         database = Room.databaseBuilder(context, EcologicalCaptureDatabase::class.java, databaseName)
-            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2).build()
+            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2, EcologicalCaptureDatabase.MIGRATION_2_3).build()
     }
     private fun newEditor() {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

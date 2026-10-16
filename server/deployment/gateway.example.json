@@ -1,0 +1,16 @@
+{
+  "storage": "/var/lib/ecocapture-gateway/private",
+  "allowed_hosts": ["gateway.example.invalid"],
+  "max_chunk_bytes": 4194304,
+  "max_video_bytes": 268435456,
+  "max_event_bytes": 2097152,
+  "max_manifest_bytes": 65536,
+  "max_installation_bytes": 536870912,
+  "max_total_bytes": 1073741824,
+  "min_free_bytes": 67108864,
+  "max_installation_active": 4,
+  "max_active": 16,
+  "requests_per_minute": 120,
+  "max_inflight": 16,
+  "staging_ttl_seconds": 86400
+}

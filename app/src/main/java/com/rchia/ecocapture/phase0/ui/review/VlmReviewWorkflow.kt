@@ -10,6 +10,9 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.combine
 
 enum class VlmReviewPhase { IDLE, QUEUED, WAITING_CHARGE, WAITING_RECORDING, WAITING_MEMORY, WAITING_APP, PREPARING, RUNNING, CANCELLING, SUCCESS, ERROR, CANCELLED }
 
@@ -39,6 +42,8 @@ class VlmReviewWorkflow(
     private val background: BackgroundAiPreparation? = null,
     private val allowBackground: () -> Boolean = { false },
     private val chargingOnly: () -> Boolean = { true },
+    private val automaticEnabled: Flow<Boolean> = flowOf(true),
+    private val backgroundEnabled: Flow<Boolean>? = null,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val mutableState = MutableStateFlow(VlmReviewState())
@@ -60,12 +65,11 @@ class VlmReviewWorkflow(
         val selectedSession = ++session
         mutableState.value = VlmReviewState()
         backgroundObservation = background?.let { controller -> scope.launch {
-            controller.observe(clipId).collect { progress ->
-                if (progress != null && (progress.automatic || allowBackground() || state.value.isBackgroundGeneration) &&
-                    (state.value.isBackgroundGeneration || generation?.isActive != true)) update(selectedSession) {
-                    it.copy(phase = progress.phase, error = progress.error,
-                        isAutomaticGeneration = progress.automatic,
-                        isBackgroundGeneration = allowBackground())
+            combine(controller.observe(clipId), automaticEnabled, backgroundEnabled ?: flowOf(allowBackground())) {
+                    progress, automatic, background -> Triple(progress, automatic, background)
+            }.collect { (progress, automatic, background) ->
+                if (progress != null) update(selectedSession) {
+                    it.withPreparationFeedback(progress, automatic, background, generation?.isActive == true)
                 }
             }
         } }

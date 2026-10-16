@@ -17,6 +17,7 @@ class Checkpoint8RecoveryWorker(context: Context, parameters: WorkerParameters) 
     override fun openDatabase() = Room.databaseBuilder(applicationContext, EcologicalCaptureDatabase::class.java, "checkpoint8-system-$token.db").build()
     override fun closeDatabase(database: EcologicalCaptureDatabase) { database.close() }
     override fun preparationAllowed() = true // Isolated protocol fixture, independent of participant preferences.
+    override fun preparationDisabled() = false // Explicit disposable fixture, independent of participant preferences.
     override fun memoryAvailable() = true // Critical callbacks remain active; deterministic preflight fixtures.
     override fun createEngine(): VlmEngine {
         val counter = marker("invocations")

@@ -1,0 +1,32 @@
+# Review template only. Dedicated account, approved volume, paths and reverse proxy required.
+[Unit]
+Description=EcoCapture synthetic mock gateway
+After=network.target
+
+[Service]
+Type=simple
+User=ecocapture-gateway
+Group=ecocapture-gateway
+WorkingDirectory=/opt/ecocapture/server
+Environment=PYTHONPATH=/opt/ecocapture/server
+Environment=OTEL_SDK_DISABLED=true
+ExecStart=/opt/ecocapture/server/.venv/bin/python -B -m ecocapture_gateway.cli --config /etc/ecocapture/gateway.json serve --port 8000
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ecocapture-gateway
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Checkpoint 4 makes no outgoing FileSender calls; only local reverse proxy traffic.
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=512M
+TasksMax=64
+LimitNOFILE=1024
+
+[Install]
+WantedBy=multi-user.target

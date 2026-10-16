@@ -53,6 +53,8 @@ class MainActivity : ComponentActivity() {
     private val clipReviewViewModel: ClipReviewViewModel by viewModels()
     private var showingReviewQueue by mutableStateOf(false)
     private var showingAiSettings by mutableStateOf(false)
+    private var showingApprovedRecordings by mutableStateOf(false)
+    private val transferViewModel: com.rchia.ecocapture.phase0.ui.transfer.TransferViewModel by viewModels()
     private var selectedClip by mutableStateOf<ClipRecord?>(null)
     private val notificationPermissionLauncher = registerForActivityResult(RequestPermission()) {
         clipReviewViewModel.setBackgroundPreparationEnabled(true)
@@ -66,8 +68,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.action == "com.rchia.ecocapture.OPEN_APPROVED_RECORDINGS") {
+            selectedClip = null; showingReviewQueue = false; showingAiSettings = false; showingApprovedRecordings = true
+        }
         if (intent.action == AiPreparationNotifications.OPEN_REVIEW) {
             showingAiSettings = false
+            showingApprovedRecordings = false
             selectedClip = null
             showingReviewQueue = true
         }
@@ -106,6 +112,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.action == "com.rchia.ecocapture.OPEN_APPROVED_RECORDINGS") showingApprovedRecordings = true
         if (intent.action == AiPreparationNotifications.OPEN_REVIEW) showingReviewQueue = true
         setContent {
             val queueState by reviewQueueViewModel.uiState.collectAsStateWithLifecycle()
@@ -139,6 +146,10 @@ class MainActivity : ComponentActivity() {
                     onError = viewModel::onReviewError,
                     onPlaybackStateChanged = viewModel::onPlaybackChanged,
                 )
+            } else if (showingApprovedRecordings) {
+                com.rchia.ecocapture.phase0.ui.transfer.ApprovedRecordingsScreen(transferViewModel,
+                    onBack = { showingApprovedRecordings = false }, captureBusy = captureBusy,
+                    onReview = { clip -> clipReviewViewModel.selectClip(clip.clipId); selectedClip = clip })
             } else if (showingAiSettings) {
                 val automaticPreparation by clipReviewViewModel.automaticPreparationEnabled.collectAsStateWithLifecycle()
                 val preferenceSaving by clipReviewViewModel.preferenceSaving.collectAsStateWithLifecycle()
@@ -174,6 +185,7 @@ class MainActivity : ComponentActivity() {
                     onRegister = { viewModel.startRegistration(this) },
                     onStartCamera = { viewModel.startCamera(::requestWearablesPermission) },
                     onReviewRecordings = { showingReviewQueue = true },
+                    onApprovedRecordings = { showingApprovedRecordings = true },
                     pendingCount = queueState.clips.size,
                     reviewQueueError = queueState.error,
                 )

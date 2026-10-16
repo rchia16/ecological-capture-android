@@ -94,6 +94,10 @@ class RoomClipRepositoryTest {
         private val rowsUpdated: Int = 1,
         private val failure: Exception? = null,
     ) : ClipDao {
+        override fun observeApprovedSources(): Flow<List<com.rchia.ecocapture.phase0.data.local.ApprovedExportSource>> = kotlinx.coroutines.flow.flowOf(emptyList())
+        override suspend fun cancelDeletedClipJobs(clipId: String, time: Long) = Unit
+        override suspend fun exportIdsForClip(clipId: String): List<String> = emptyList()
+        override suspend fun markExportsPurged(clipId: String) = Unit
         var updatedClipId: String? = null
         var updatedAt: Long = 0
         var approvedClipId: String? = null

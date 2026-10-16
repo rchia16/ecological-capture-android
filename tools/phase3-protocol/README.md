@@ -45,4 +45,34 @@ The investigator explicitly authorized use of the existing unrotated credential 
 
 Nine mock tests cover signature compatibility, literal percent handling in synthetic configuration, fixed host/outside-repository restrictions, safe output/failure handling, redirect/size rejection and request bounds. Together with seven download-verifier tests, **16 tests passed** with ResourceWarning treated as an error. An initial fake HTTP error cleanup warning led to explicitly closing HTTPError responses; the final suite passed without it. This mock result is not signed account validation.
 
-See [protocol record](../../documentation/PHASE3_AARNET_PROTOCOL.md) and [crypto decision](../../documentation/PHASE3_CRYPTO_DECISION.md). The investigator-supplied `tools/filesender.py` has been reviewed and remains unsafe for direct credential use; disabling verbose alone does not prevent sensitive errors. Do not execute or import the unmodified script: its module entry point constructs the CLI, reads configuration and processes requests. No live-upload command is supplied yet because a reviewed credential-use harness, rotated-credential confirmation, approved recipient/expiry and concrete external-transfer authorization are still pending. FileSender INI files are ignored and were not read during the review.
+See [protocol record](../../documentation/PHASE3_AARNET_PROTOCOL.md) and [crypto decision](../../documentation/PHASE3_CRYPTO_DECISION.md). The investigator-supplied `tools/filesender.py` remains unsafe for direct credential use; disabling verbose alone does not prevent sensitive errors. Do not execute or import the unmodified script. The separately reviewed engineering tools were used under the investigator's explicit current-key authorization for the read-only probe and later synthetic transfer described below. FileSender INI files are ignored; contents were loaded internally only by the authorized tools and never printed.
+
+## Authorized synthetic transfer actually executed
+
+On 2026-10-13 the investigator explicitly requested the two-file test using the current credential, approved email and five days. Executed once:
+
+```powershell
+python -B tools/phase3-protocol/checkpoint1_send_test.py --config C:/Users/rchia/.filesender/filesender.py.ini --fixtures tools/phase3-protocol/artifacts/fixtures --job tools/phase3-protocol/artifacts/test-transfer-20261013 --recipient raymond.chia@uts.edu.au --days 5
+```
+
+Do not rerun this to create another transfer. Existing job directories are refused; uncertain results require reconciliation. Transfer `3647625` completed and its two downloaded files matched source hashes. Expiry: 18 October 2026 14:11:01 Sydney. Safe receipt and engineering downloads are ignored local artifacts. No raw CLI, credentials in arguments, automatic create retries or failure deletion were used. Current suite has 26 passing Python tests.
+
+For manual researcher receiving, check the notification and download both files to a folder containing exactly those two files (extract a ZIP first if necessary). From the repository root, replacing the final path with your actual download folder:
+
+```powershell
+python -B tools/phase3-protocol/checkpoint1_probe.py verify tools/phase3-protocol/artifacts/fixtures/expected.json "D:/path/to/downloaded-files"
+```
+
+Expected result: `SHA256_VERIFIED`. Report notification count, displayed expiry and verification result, without recipient links/tokens. The automated download already passed, but independent human/researcher receipt and encrypted-workstation verification remain separate pending evidence.
+# Checkpoint 2 local inspection
+
+Local snapshots, schemas, independent verification and USB inspection are documented in `documentation/PHASE3_EVENT_SCHEMA.md`. `verify_snapshot.py` requires a trusted manifest digest. `pull_snapshot.py` reads only an explicitly selected disposable snapshot and extracts fixed regular filenames; it makes no FileSender request. `checkpoint2_retention.py` computes hashes on the device without copying protected file/DB contents. Generated cross-language fixtures live under ignored `app/build/c2/`; phone/host proof outputs remain under ignored `artifacts/`.
+
+Checkpoint 2 tests:
+
+```powershell
+# First run module-qualified Android unit tests to generate synthetic Kotlin fixtures.
+python -B -m unittest discover -s tools/phase3-protocol -p 'test_*snapshot.py' -v
+```
+
+Unfinished investigator checks are maintained in `documentation/PHASE3_OUTSTANDING_CHECKS.md`.

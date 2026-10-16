@@ -38,3 +38,11 @@ replay_pid*
 tools/phase3-protocol/artifacts/
 # FileSender account configuration can contain API credentials; never track it.
 filesender.py.ini
+
+# Local gateway dependencies, disposable state/certificates and test artifacts.
+server/.venv/
+server/.state/
+server/.test-artifacts/
+server/.wheelhouse/
+server/.packages/
+*.sif

@@ -41,6 +41,7 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
         VlmEngineFactory.create(application, VlmRuntimeMode.QWEN_PARTICIPANT), descriptionEditor, viewModelScope,
         background = background, allowBackground = { backgroundPreparationEnabled.value },
         chargingOnly = { chargingOnly.value },
+        automaticEnabled = aiPreferences.enabled, backgroundEnabled = aiPreferences.backgroundEnabled,
     )
     val automaticPreparationEnabled = aiPreferences.enabled
     private val mutablePreferenceSaving = MutableStateFlow(false)

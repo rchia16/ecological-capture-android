@@ -1,0 +1,48 @@
+Bootstrap: docker
+From: python:3.14-slim-bookworm
+
+%files
+    server/ecocapture_gateway /opt/ecocapture/server/ecocapture_gateway
+    server/requirements.lock /opt/ecocapture/server/requirements.lock
+    server/pyproject.toml /opt/ecocapture/server/pyproject.toml
+    server/README.md /opt/ecocapture/server/README.md
+    server/tests /opt/ecocapture/server/tests
+    server/deployment/gb10 /opt/ecocapture/server/deployment/gb10
+    documentation/schemas /opt/ecocapture/documentation/schemas
+    documentation/PHASE3_GATEWAY_API.md /opt/ecocapture/documentation/PHASE3_GATEWAY_API.md
+    documentation/PHASE3_CHECKPOINT4_REPORT.md /opt/ecocapture/documentation/PHASE3_CHECKPOINT4_REPORT.md
+    documentation/PHASE3_OUTSTANDING_CHECKS.md /opt/ecocapture/documentation/PHASE3_OUTSTANDING_CHECKS.md
+
+%post
+    set -eu
+    apt-get update
+    apt-get install -y --no-install-recommends nginx openssl ca-certificates
+    python -m pip install --no-cache-dir -r /opt/ecocapture/server/requirements.lock
+    python /opt/ecocapture/server/deployment/gb10/install_age.py
+    age --version
+    python -m pip check
+    mkdir -p /gateway-config /gateway-state /gateway-secrets
+    chmod -R a-w /opt/ecocapture
+
+%environment
+    export PYTHONPATH=/opt/ecocapture/server
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export OTEL_SDK_DISABLED=true
+
+%runscript
+    exec python -B /opt/ecocapture/server/deployment/gb10/container_runtime.py "$@"
+
+%test
+    python -m pip check
+    age --version
+    python -B -W error::ResourceWarning -m unittest discover -s /opt/ecocapture/server/tests -v
+
+%labels
+    Purpose "Checkpoint 5 exact synthetic fixture forwarder; live sending requires explicit operator action"
+    Age "v1.3.2 Linux ARM64 release SHA256 6b8dc4333c53a5a57c9e5834e3a48f92605d7154014cd07269ff3327db5d37f4"
+
+%help
+    Build a new checkpoint5 SIF; preserve the accepted Checkpoint 4 fixed image.
+    Runtime always starts the mock HTTP gateway. Forwarding is explicit CLI only.
+    Credentials must be separately approved and bound read-only, never built into SIF.

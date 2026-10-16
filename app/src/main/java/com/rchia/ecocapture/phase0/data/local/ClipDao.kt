@@ -9,6 +9,16 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ClipDao {
+    @Transaction
+    @Query("SELECT * FROM clips WHERE approvalState = 'APPROVED' ORDER BY createdAtEpochMs DESC, clipId")
+    fun observeApprovedSources(): Flow<List<ApprovedExportSource>>
+
+    @Query("UPDATE transfer_jobs SET state = 'CANCELLED', updatedAtEpochMs = :time, lastSafeErrorCode = NULL WHERE clipId = :clipId")
+    suspend fun cancelDeletedClipJobs(clipId: String, time: Long)
+    @Query("SELECT snapshotId FROM export_snapshots WHERE clipId = :clipId UNION SELECT snapshotId FROM transfer_jobs WHERE clipId = :clipId")
+    suspend fun exportIdsForClip(clipId: String): List<String>
+    @Query("UPDATE export_snapshots SET snapshotState = 'PURGED' WHERE clipId = :clipId")
+    suspend fun markExportsPurged(clipId: String)
     @Query("SELECT * FROM clips WHERE approvalState != 'DELETED' ORDER BY createdAtEpochMs DESC")
     fun observeActiveClips(): Flow<List<ClipEntity>>
 
@@ -50,6 +60,7 @@ interface ClipDao {
         check(markDeleted(clipId, updatedAtEpochMs) == 1) { "Could not persist recording deletion" }
         eraseAnnotations(clipId)
         eraseVlmRuns(clipId)
+        cancelDeletedClipJobs(clipId, updatedAtEpochMs)
     }
 
     @Query("UPDATE clips SET reviewState = 'DEFERRED', approvalState = 'UNDECIDED', updatedAtEpochMs = :updatedAtEpochMs WHERE clipId = :clipId AND approvalState = 'UNDECIDED' AND reviewState IN ('UNREVIEWED', 'DEFERRED')")

@@ -1007,6 +1007,7 @@ Store **no actual participant video**, secrets or real participant profiles in G
 13. At the end of each checkpoint produce `documentation/PHASE3_CHECKPOINT<N>_REPORT.md` with status, exact commands, screenshots/log summaries if applicable, test results, changed files, data retention verification, manual checks, issues, risk and a STOP marker.
 14. STOP and ask the investigator before any irreversible or billable real external transfer, infrastructure provisioning or integration of private credentials.
 15. Maintain a decision log `documentation/PHASE3_DECISIONS.md`, especially for gateway host, crypto, consent policy, recipient, expiry, retention and BYOD support.
+16. End every checkpoint's final chat response here with the investigator's manual checklist: concrete action, expected result and any evidence to report back. State which checks can be done now and which await a build, authorized transfer or other prerequisite. Summarize automated results separately; do not ask the investigator to repeat automated checks unnecessarily. If no manual check is required, say so explicitly. Include the same checklist immediately before the report's STOP marker. Preserve unfinished manual checks from earlier checkpoints until actual results are supplied.
 
 ## Standard report template
 
@@ -1026,6 +1027,7 @@ Date:
 ## Manual acceptance steps
 ## Known failures and limitations
 ## Recommended next checkpoint
+## Your manual checks (ready now / awaiting prerequisite; action, expected result, evidence to report)
 
 STOP. Do not continue without explicit approval.
 ```

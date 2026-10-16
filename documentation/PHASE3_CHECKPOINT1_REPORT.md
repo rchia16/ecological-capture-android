@@ -1,7 +1,9 @@
 # Phase 3 Checkpoint 1 - Live AARNet Protocol and Encryption Feasibility
 
 Status: PARTIAL
-Date: 2026-10-12 (Australia/Sydney)
+
+Continuation update (2026-10-13): investigator explicitly deferred backup recovery and instructed Checkpoint 2 local snapshot work. Remaining items are tracked in `PHASE3_OUTSTANDING_CHECKS.md`; this authorization does not mark Checkpoint 1 complete or authorize participant uploads. Earlier STOP wording is superseded for that authorized local work only.
+Date opened: 2026-10-12; latest transfer evidence: 2026-10-13 (Australia/Sydney)
 
 ## Scope implemented
 
@@ -131,39 +133,117 @@ Downloaded binary/reference files and generated data are ignored, with hashes/ve
 
 Before an actual account transfer:
 
-1. Investigator confirms the exposed secret was rotated and supplies protected rotated-credential provisioning details outside Git/logs/chat. Actual reference script path/hash is now recorded; account identity remains pending.
+1. External credential location and actual reference script/hash are recorded. Existing-key use was explicitly authorized for the read-only check and succeeded; any further credential use/transfer needs the plan's rotation requirement or an explicit investigator exception resolved for that action. Prior exposure remains an unverified plan assertion.
 2. Address the supplied-client review's sensitive diagnostics, misleading failure exit/retry behavior, download path handling and TLS bypasses in a reviewed test harness before using credentials. Do not execute the unmodified CLI.
-3. Confirm the recipient and explicit expiry for the two synthetic files. Obtain concrete external-transfer authorization as required by plan section 17.14; the general checkpoint continuation instruction is recorded separately.
+3. Recipient `raymond.chia@uts.edu.au` and five-day requested expiry are recorded. Obtain concrete external-transfer authorization as required by plan section 17.14; the read-only authorization does not itself authorize an upload.
 4. Verify signed authentication and accepted account settings. Upload the two named synthetic files, retaining remote identity and actual server-acknowledged expiry. Complete both files and the transfer, then retrieve status without exposing tokens/URLs.
 5. Researcher downloads to an isolated directory and runs the independent verifier against the trusted local expected record. Record actual notification counts, retrieval, hashes and expiry.
 6. Approve the crypto choice and private-key custody/recovery process, then prove the ciphertext -> FileSender -> independent workstation -> decrypt -> original hashes path using harmless data. A same-host age test is insufficient.
 
-No actual upload command has been supplied or executed while these details are missing. Protocol source links and exact synthetic fixture hashes are already reviewable.
+The initial pre-transfer checks above were followed by the explicitly authorized synthetic transfer and researcher verification recorded below. Further encrypted transfers still require their concrete preparation and authorization.
 
 ## Known failures and limitations
 
-- Supplied script remains unsafe for direct credential use. The reviewed read-only probe passed with the current key under an explicit investigator exception; a safe upload/download harness remains pending.
-- Secret rotation/account identity, approved recipient/expiry and separately protected credential provisioning unconfirmed.
-- Signed read authentication passed; signed mutation/upload protocol, recipient behavior, FileSender expiry and researcher receiving path remain untested.
+- Supplied script remains unsafe for direct credential use. Reviewed engineering auth/synthetic-upload tooling was used instead; the original CLI was not executed.
+- Secret remains unrotated; explicit investigator instructions cover the completed read-only check and synthetic transfer. Production rotation is not claimed. Engineering recipient and five-day server expiry are confirmed; account identity is not logged.
+- Synthetic plaintext upload, completion, automated download and researcher-reported/download-file hash verification passed. Notification arrival was confirmed; exact notification count was not supplied. Encrypted transfer and independent workstation/key recovery remain untested.
 - Crypto proposal has local proof, not institutional approval or independent workstation/key-recovery acceptance.
 - Public source fetches required approved host network access; some browser fetches failed. Successful direct HTTPS reads are documented separately.
-- Checkpoint 0 baseline remains partial; no claims of passed physical/manual acceptance were added.
+- Checkpoint 0 has user-reported app/glasses/accessibility acceptance; technical retention/recovery and specific disposable-clip inventory remain pending.
 
 ## Exit criteria
 
 - [ ] Signed auth works with rotated secret.
 - [x] Signed read works with existing secret under explicit investigator exception; no key rotation claimed.
 - [x] Public `/info` returned a usable observed chunk size; account configuration still pending.
-- [ ] Harmless two-file transfer completes.
-- [ ] Researcher download matches SHA-256.
-- [ ] Recipient/notification volume characterized.
+- [x] Harmless two-file transfer completes.
+- [x] Researcher download matches SHA-256; manual PowerShell hashes independently checked against source and named local files.
+- [x] Recipient confirms notification arrival and expiry.
+- [ ] Exact notification count/volume characterization recorded.
 - [x] Local age encryption/decryption proof passes.
 - [ ] Encrypted FileSender/independent-researcher proof and institutional crypto choice completed.
-- [ ] Actual transfer expiry recorded.
+- [x] Actual transfer expiry recorded and confirmed by investigator.
 - [x] No secrets or download tokens printed by executed tooling.
 
 ## Recommended next checkpoint
 
 Finish the pending Checkpoint 1 live account/recipient/encrypted round-trip checks after required non-secret details and authorization arrive. Keep participant uploads disabled. Resolve remaining baseline acceptance separately; do not treat this partial report as approval to start Checkpoint 2 or a gateway implementation.
+
+## Authorized synthetic transfer - 2026-10-13
+
+Investigator reported the presented manual checks "all fine" and explicitly instructed "send a test transfer". This authorizes the two specified synthetic files using the provisioned current key, recipient `raymond.chia@uts.edu.au` and five-day expiry. No participant footage or private annotation was included. The unrotated-key exception now covers this requested engineering transfer; it is not production or participant-upload approval.
+
+Added `tools/phase3-protocol/checkpoint1_send_test.py` and `test_checkpoint1_send_test.py`. The reviewed sender fixes the host/TLS boundary, redacts errors, restricts inputs to exact known fixture hashes and the authorized recipient/expiry, streams one bounded chunk at a time, persists creation intent and transfer ID, never automatically retries creation and never deletes a transfer on failure. Existing job directories require reconciliation. The original supplied CLI was not executed.
+
+Command executed once:
+
+```powershell
+python -B tools/phase3-protocol/checkpoint1_send_test.py --config C:/Users/rchia/.filesender/filesender.py.ini --fixtures tools/phase3-protocol/artifacts/fixtures --job tools/phase3-protocol/artifacts/test-transfer-20261013 --recipient raymond.chia@uts.edu.au --days 5
+```
+
+Both files were uploaded in three bounded chunks (71, 12582912 and 17 bytes), both file completions were acknowledged, and transfer completion was acknowledged. The initial final guard incorrectly required a `status` field absent from AARNet's actual owner response, producing `FINALIZATION_NOT_VERIFIED` after completion. Transfer ID was already persisted, so no second transfer or repeat finalization was created. Read-only reconciliation retrieved the same transfer and used its recipient download access to verify both complete files against the source SHA-256 record.
+
+Download troubleshooting encountered a case-sensitive recipient comparison, an existing temporary download directory and an intentionally blocked redirect. AARNet redirects downloads to the same HTTPS host and `/download.php` path. The final read-only download allowed only that exact host/path, with normal TLS and bounded output, using a fresh local directory. Tokens/links remained internal and were not logged. Successful downloaded bytes passed the independent local verifier. This is an automated same-host recipient-route download, not evidence that the investigator has downloaded/decrypted on a separate workstation.
+
+| Result | Actual evidence |
+| --- | --- |
+| FileSender transfer ID | `3647625` |
+| Test ID / email subject suffix | `0449e162-89a3-4da9-a841-62ec19d4b4a8` |
+| Recipient | `raymond.chia@uts.edu.au` |
+| FileSender completion | Acknowledged and reconciled by successful recipient-route download |
+| Server expiry | `1792293061000` epoch ms, **2026-10-18 14:11:01 Australia/Sydney**; exactly the requested five-day timestamp |
+| `synthetic-note.txt` | 71 bytes; SHA-256 `104b5784640475d8e6b1748d10f5f7ca567795bee6134fff054fdfb9176475f6` |
+| `synthetic-pattern.bin` | 12582929 bytes; SHA-256 `2035167438838a59533e30d07fdda4ecd0ea8a3f14fa41fa255761761fa6ad76` |
+| Download comparison | Both exact SHA-256/byte sizes passed |
+| Independent researcher receipt | Investigator confirms downloaded files; supplied manual PowerShell SHA-256 values match source, and direct named-file read verifies exact hashes/sizes |
+| Notification count | Arrival confirmed; exact numerical count not supplied |
+| Encryption / archive | This two-file protocol test is unencrypted synthetic data; encrypted FileSender/independent workstation test and archival remain unperformed |
+
+The non-secret receipt and downloaded synthetic bytes remain under ignored `tools/phase3-protocol/artifacts/test-transfer-20261013/`. Sender completion verification was corrected to require matching completion acknowledgment and owner file metadata, accepting the documented actual response without a status field. A present stalled status still fails. Two regression cases were added. Final Python suite: **26 passed, zero failures/errors/skips**, 0.532 seconds, with ResourceWarning treated as error. Module-qualified Android build/unit invocation succeeded in 8 seconds (134 tasks: 12 executed, 122 up to date); unit tasks reused prior passing results. No phone install or Room run was needed for this Python-only change.
+
+Checkpoint 1 remains PARTIAL pending encrypted independent-workstation feasibility, crypto/key decisions and complete notification-volume evidence. Earlier "not run" entries above describe the preceding state and are superseded for this synthetic plaintext protocol test by this dated evidence. No gateway implementation or next checkpoint began.
+
+### Researcher download confirmation and hashes - 2026-10-13
+
+Investigator confirmed the manual receiving checks and identified `C:/Users/rchia/Downloads`. Their manually computed PowerShell SHA-256 values for both synthetic files match the trusted original hashes. Codex then opened **only** `synthetic-note.txt` and `synthetic-pattern.bin` at that location, streamed SHA-256 and checked byte sizes: 71 and 12582929 bytes, both exact matches. No unrelated Downloads content was enumerated or copied.
+
+Investigator also supplied a ZIP SHA-256: `fcfb49ecec968a99da6de7ab1932cd5af6088b7e7fbffdde6fd9386bf654db16`. This is recorded as user-reported container metadata. Its full filename was truncated and there is no trusted original ZIP digest for comparison; the exact extracted source-file hashes establish the successful plaintext round trip. No ZIP match against an original ZIP is claimed.
+
+The local non-secret receipt was updated with human receipt/hash confirmation, scoped to the two synthetic plaintext files. This does not establish encryption, a separate decryption workstation, private-key recovery or eResearch archival. No additional transfer was sent.
+
+## Researcher encrypted decryption evidence
+
+Investigator provided the local PowerShell transcript for transfer 3647689: ciphertext hash matches the prepared artifact, age decryption using the local researcher identity succeeded, decrypted TAR matched the trusted archive hash, extraction succeeded and `checkpoint1_probe.py verify` returned `SHA256_VERIFIED` for both original synthetic files. Codex independently rechecked the named ciphertext/TAR and extracted-file hashes without opening any private identity. The actual encrypted transfer/decryption/source-hash interoperability path now passes.
+
+Exact read-only verification command:
+
+```powershell
+python -B tools/phase3-protocol/checkpoint1_probe.py verify tools/phase3-protocol/artifacts/fixtures/expected.json C:/Users/rchia/Downloads/ecocapture-encrypted-check/files
+```
+
+Ciphertext/TAR were additionally hashed by an inline Python streaming SHA-256 check against their documented expected hashes. No decryption with a private key was run by Codex. Backup-key recovery, protected storage/custodian, institutional crypto decision and remaining baseline technical evidence are not inferred from these results. Checkpoint 1 remains PARTIAL; no new checkpoint began.
+
+## Your manual checks
+
+Encrypted transfer execution (2026-10-13): investigator explicitly instructed "send". Checked absence of an existing encrypted-transfer job following the interrupted turn, then executed once:
+
+```powershell
+python -B tools/phase3-protocol/checkpoint1_send_test.py --config C:/Users/rchia/.filesender/filesender.py.ini --fixtures tools/phase3-protocol/artifacts/encrypted-test-20261013 --job tools/phase3-protocol/artifacts/encrypted-transfer-20261013 --recipient raymond.chia@uts.edu.au --days 5 --encrypted
+```
+
+Exit 0, `FILESENDER_COMPLETE`; transfer **3647689**, test ID `659cfeb0-70ed-4833-a33d-25e34cef8cf9`. Only `synthetic-files.tar.age` was sent, 12598472 bytes, SHA-256 `4fb64c6d844dd60393bf445fb8a1f591dac164ad6f7e202f56de9548a5f48889`. Actual server expiry: **2026-10-18 14:49:22 Sydney / 1792295362000 epoch ms**, five days as requested. Both file and transfer completion were acknowledged and matching owner metadata retrieved; no duplicate creation, private-key read or archival occurred. This runs the already-tested sender without further code changes; no new regression run was needed for the external execution. Researcher verification is still false in the non-secret receipt at ignored `tools/phase3-protocol/artifacts/encrypted-transfer-20261013/receipt.json`.
+
+Encrypted-test preparation follow-up (2026-10-13): validated and read only the public recipient file at the agreed outside-repository location; private file existence checked without contents. Prepared the encrypted two-fixture archive documented in `PHASE3_CRYPTO_DECISION.md`, ciphertext SHA-256 `4fb64c6d844dd60393bf445fb8a1f591dac164ad6f7e202f56de9548a5f48889`, 12598472 bytes. No encrypted upload or real-key decryption occurred. Sender now has an exact fixed ciphertext profile; two added mock tests bring the passing Python suite to 28 (0.643 seconds, zero failures/errors/skips). Module-qualified Android build/unit invocation succeeded in 1 second with 134 tasks (3 executed, 131 up to date); unit results were reused. Backup location and external encrypted-transfer authorization remain pending. Manual commands and expected hashes are in the crypto decision document.
+
+Authentication, synthetic upload/download and investigator's downloaded-file hashes passed. Receipt and expiry have been confirmed; no repeat of these manual checks is needed. Earlier ready app checks were reported "all fine". Technical retention and encrypted-workstation evidence remain outstanding.
+
+- [ ] Ready now: review the proposed encryption/key-custody/recovery decision in `PHASE3_CRYPTO_DECISION.md`. Report whether it is approved or which decisions still need institutional review; do not send private keys or passwords.
+- [x] Investigator confirmed FileSender notification, intended synthetic files and displayed expiry. Exact notification count was not specified; recipient link/token was not shared.
+- [x] Investigator downloaded both files and computed matching SHA-256 hashes. Codex verified the named Downloads files also have exact hashes and expected sizes. No repeat check required.
+- [x] Researcher downloaded encrypted transfer 3647689 and verified ciphertext SHA-256 `4fb64c6d844dd60393bf445fb8a1f591dac164ad6f7e202f56de9548a5f48889`.
+- [x] Researcher locally decrypted, verified the TAR hash and both original files; verifier returned `SHA256_VERIFIED`. This confirms the technical workflow; institutional workstation approval remains separate.
+- [ ] Pending protected backup location: repeat decryption using the backup identity, preserving the original key. Expected: recovered TAR SHA-256 `4e885c67adbd3584279db77815dfa13a231077a3d1fd696871a76c0000fe642f`. Report safe results and workstation identity only, never private key/password contents.
+
+Report each manual item as PASS, FAIL or NOT TESTED. Outstanding Checkpoint 0 glasses/TalkBack/retention checks still apply. No participant recording is needed for these FileSender tests.
 
 STOP. Do not continue to another checkpoint without explicit approval. Checkpoint 1 is PARTIAL.

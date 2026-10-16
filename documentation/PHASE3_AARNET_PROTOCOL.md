@@ -1,7 +1,7 @@
 # Phase 3 AARNet protocol record
 
 Date: 2026-10-12 (Australia/Sydney).
-Status: PARTIAL - signed read-only account authentication passed; transfer/download tests pending.
+Status: PARTIAL - authenticated synthetic transfer, automated recipient-route download and investigator receiving/hash verification passed; encrypted workstation tests pending.
 
 ## Evidence boundary
 
@@ -133,10 +133,26 @@ Safe result: `SIGNED_READ_SUCCEEDED`, `upload_chunk_size = 12582912`, `transfer_
 | Account identity | Not recorded; no authenticated account queried |
 | Signed auth/account `/info` | Public `/info` and signed `GET /transfer/@me` passed through reviewed probe; 12 MiB chunk size |
 | Engineering recipient/expiry | Investigator specifies `raymond.chia@uts.edu.au`, five days; actual server-acknowledged expiry untested |
-| Create/upload/file-complete/transfer-complete | Not run |
-| Transfer ID/acknowledged expiry | None |
-| Researcher download and independent SHA-256 match | Not run |
-| Notification count/rate-limit behavior | Unknown |
+| Create/upload/file-complete/transfer-complete | Passed for the two synthetic files on 2026-10-13 |
+| Transfer ID/acknowledged expiry | `3647625`; 18 October 2026 14:11:01 Sydney |
+| Researcher download and independent SHA-256 match | Investigator confirms download/manual hashes; both named local Downloads files independently match source |
+| Notification count/rate-limit behavior | Notification arrival confirmed; numerical count and rate-limit behavior not measured |
 | Encrypted FileSender round trip | Not run; local age proof only |
 
 Do not mark Checkpoint 1 passed until these actual account and researcher checks are recorded. FileSender completion never establishes archive verification.
+
+## Authorized actual transfer evidence - 2026-10-13
+
+Investigator explicitly requested the test transfer after specifying recipient `raymond.chia@uts.edu.au` and five days. Reviewed isolated sender uploaded only the two fixed hash-verified synthetic files using the external current credential. Transfer **3647625** completed; actual acknowledged expiry is **1792293061000 epoch ms / 18 October 2026 14:11:01 Sydney**. Both files were then downloaded using recipient-route access and independently matched their exact source hashes/lengths listed above. No second transfer was created, and no FileSender delete was attempted.
+
+Actual owner metadata omits the specification/reference's expected status field. The first post-completion guard failed on that absence; persisted identity enabled read-only reconciliation. Future sender checks require matching completion acknowledgment, owner identity/files and expiry rather than an absent status property. AARNet download requests use a same-origin HTTPS `/download.php` redirect; the successful synthetic download permitted only that host/path. No signed URLs, recipient tokens or credential contents were output.
+
+Non-secret receipt is in ignored `tools/phase3-protocol/artifacts/test-transfer-20261013/receipt.json`. This succeeds for plaintext synthetic protocol bytes, not encrypted participant events. User notification count, independent researcher receiving/hash confirmation and encrypted FileSender/workstation feasibility remain pending. Previous "not run" rows describe the pre-transfer state and are superseded by this dated entry for the two-file engineering test.
+
+Investigator subsequently confirmed receipt/expiry and downloaded both files to `C:/Users/rchia/Downloads`. Their manual PowerShell SHA-256 values match the original source hashes. Read-only verification of those two named files also matched exact SHA-256 and lengths. User-reported ZIP hash `fcfb49ecec968a99da6de7ab1932cd5af6088b7e7fbffdde6fd9386bf654db16` is container metadata only; no expected source ZIP exists for comparison. Human plaintext receiving evidence is complete; numerical notification count and encrypted/workstation/key-recovery evidence remain pending. No extra transfer or archive action occurred.
+
+## Authorized encrypted-artifact upload - 2026-10-13
+
+After preparing the two-fixture archive with the investigator public recipient key and receiving explicit "send" authorization, uploaded only `synthetic-files.tar.age` (12598472 bytes, SHA-256 `4fb64c6d844dd60393bf445fb8a1f591dac164ad6f7e202f56de9548a5f48889`). Transfer **3647689** was acknowledged complete; owner metadata matched. Recipient `raymond.chia@uts.edu.au`, actual expiry **18 October 2026 14:49:22 Sydney**. The sender used no private decryption identity, and FileSender received pre-encrypted bytes. This proves encrypted artifact API upload/finalization, not researcher decrypt/hash/key-recovery or eResearch archival. Those manual checks remain pending in the crypto decision/report.
+
+Investigator then supplied successful ciphertext hash, local age decryption, exact decrypted TAR hash and extracted-file `SHA256_VERIFIED` evidence. Codex read-only checks of those named synthetic outputs also matched. Encrypted FileSender/researcher decryption/hash interoperability therefore passes; protected backup-key recovery and institutional crypto approval remain pending. No private key was read by Codex or sent to FileSender/gateway, and no archival claim is made.

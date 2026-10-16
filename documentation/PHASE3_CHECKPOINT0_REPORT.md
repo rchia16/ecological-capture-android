@@ -1,6 +1,8 @@
 # Phase 3 Checkpoint 0 - Baseline Release Gate and Protected Data Audit
 
 Status: PARTIAL
+
+Retention follow-up (2026-10-13, Checkpoint 2): unlocked Pixel 9 allowed read-only on-device SHA inventory. All three main database files, 24 recording-directory files and two model files were byte-identical across replacement install and again after isolated Room regression. No participant file/DB contents copied. This establishes that upgrade's retention, not protected backup recovery or a disposable-clip manual inspection. See `PHASE3_CHECKPOINT2_REPORT.md` and the running `PHASE3_OUTSTANDING_CHECKS.md`.
 Date: 2026-10-12 (Australia/Sydney)
 Baseline commit: `208c55a` (2026-10-09); working tree clean before this audit.
 
@@ -155,5 +157,19 @@ Human results and disposable-clip identification were requested during this audi
 ## Recommended next checkpoint
 
 Finish Checkpoint 0 after device unlock and investigator acceptance results. Resolve the pending decisions in `PHASE3_DECISIONS.md`; approve the baseline explicitly before authorizing Checkpoint 1 harmless-file protocol/encryption feasibility work.
+
+## Your manual checks
+
+Investigator reported the presented ready manual checks "all fine" on 2026-10-13. The app checks below are marked as user-reported acceptance, not Codex-operated tests. No detailed build/device walkthrough results were supplied. Disposable-clip identification and the technical upgrade/retention/recovery evidence remain pending. Use only investigator-confirmed disposable recordings for deletion.
+
+- [ ] Unlock the Pixel 9 once after boot and identify one harmless disposable glasses recording. Report its filename/clip identifier only, without participant text or footage.
+- [x] User-reported: connect the glasses, record/stop/save, then open and play/pause/replay the clip. Expected: a playable finalized recording; repeat capture works after returning from review.
+- [x] User-reported: add/edit/save a description; check unsaved-edit and optional suggestion Use/edit/Save, Reject/regenerate and Cancel. Expected: only Save changes participant text; AI remains optional and never silently replaces it.
+- [x] User-reported: review decisions and disposable-clip deletion. Expected: decisions work independently, approved media stays saved, and the deleted clip stays absent.
+- [x] User-reported: AI Settings/preparation/cancellation controls. Expected: settings persist, preparation does not change descriptions/decisions, and capture proceeds after inference cleanup.
+- [x] User-reported: TalkBack and enlarged-text navigation. Expected: clear labels/states, reachable pinned controls, usable playback/editor/actions and no automatic reading of the entire generated output.
+- [ ] After Codex completes the safe replacement-install preflight and upgrade, check valued recordings, saved descriptions/decisions and model availability. Expected: existing data remain accessible. This check awaits a scheduled, certificate-matched replacement install; do not uninstall or clear data yourself.
+
+Report each item as PASS, FAIL or NOT TESTED, with device/build and a brief description of any failure. Confirm the approved backup/recovery process separately; replacement installation alone is not a backup.
 
 STOP. Do not continue without explicit approval. Checkpoint 0 is PARTIAL; no claim is made that its release gate has passed.

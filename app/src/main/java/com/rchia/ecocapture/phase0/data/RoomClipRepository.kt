@@ -49,6 +49,19 @@ class RoomClipRepository(
             // A process death during file removal must never leave an active event or resurrect media.
             dao.markDeletedAndEraseText(clipId, System.currentTimeMillis())
             val video = File(clip.videoPath)
+            // Cancelled in the tombstone transaction; remove scientific export copies before original media.
+            if (video.parentFile?.name == "recordings") {
+                val files = checkNotNull(video.parentFile?.parentFile)
+                val transferRoot = File(files, "event-exports")
+                dao.exportIdsForClip(clipId).forEach {
+                    com.rchia.ecocapture.phase0.export.LocalSnapshotFiles.purge(transferRoot, it)
+                }
+                val engineeringRoot = File(files, "engineering-exports")
+                com.rchia.ecocapture.phase0.export.LocalSnapshotFiles.engineeringIdsForClip(engineeringRoot, clipId).forEach {
+                    com.rchia.ecocapture.phase0.export.LocalSnapshotFiles.purge(engineeringRoot, it)
+                }
+                dao.markExportsPurged(clipId)
+            }
             val metadata = clip.metadataPath?.let(::File)
                 ?: File(video.parentFile, "${video.nameWithoutExtension}.json").takeIf { it.exists() }
 

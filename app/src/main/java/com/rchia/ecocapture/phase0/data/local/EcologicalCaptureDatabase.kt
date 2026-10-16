@@ -7,13 +7,36 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [ClipEntity::class, VlmRunEntity::class, AnnotationEntity::class], version = 2, exportSchema = false)
+@Database(entities = [ClipEntity::class, VlmRunEntity::class, AnnotationEntity::class,
+    ExportSnapshotEntity::class, TransferJobEntity::class], version = 3, exportSchema = false)
 abstract class EcologicalCaptureDatabase : RoomDatabase() {
     abstract fun clipDao(): ClipDao
     abstract fun vlmRunDao(): VlmRunDao
     abstract fun annotationDao(): AnnotationDao
+    abstract fun exportSnapshotDao(): ExportSnapshotDao
+    abstract fun transferJobDao(): TransferJobDao
 
     companion object {
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS export_snapshots (
+                    snapshotId TEXT NOT NULL PRIMARY KEY, clipId TEXT NOT NULL, previousSnapshotId TEXT,
+                    createdAtEpochMs INTEGER NOT NULL, eventJsonSha256 TEXT NOT NULL,
+                    manifestSha256 TEXT NOT NULL, mp4Sha256 TEXT NOT NULL, snapshotState TEXT NOT NULL,
+                    appVersion TEXT NOT NULL, studyParticipantCode TEXT
+                )""".trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_export_snapshots_clipId ON export_snapshots(clipId)")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS transfer_jobs (
+                    jobId TEXT NOT NULL PRIMARY KEY, snapshotId TEXT NOT NULL, clipId TEXT NOT NULL,
+                    state TEXT NOT NULL, createdAtEpochMs INTEGER NOT NULL, updatedAtEpochMs INTEGER NOT NULL,
+                    retryCount INTEGER NOT NULL, progressPercent INTEGER NOT NULL,
+                    lastSafeErrorCode TEXT, transportMode TEXT NOT NULL, sourceVersionSha256 TEXT NOT NULL,
+                    previousSnapshotId TEXT, appVersion TEXT NOT NULL
+                )""".trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_transfer_jobs_clipId ON transfer_jobs(clipId)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_transfer_jobs_snapshotId ON transfer_jobs(snapshotId)")
+            }
+        }
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -45,7 +68,7 @@ abstract class EcologicalCaptureDatabase : RoomDatabase() {
                     context.applicationContext,
                     EcologicalCaptureDatabase::class.java,
                     "ecological_capture.db",
-                ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
             }
     }
 }

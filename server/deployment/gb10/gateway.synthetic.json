@@ -1,0 +1,6 @@
+{
+  "storage": "/gateway-state/private",
+  "allowed_hosts": ["promaxgb10-4e2b.tail06a565.ts.net"],
+  "max_chunk_bytes": 4194304,
+  "staging_ttl_seconds": 86400
+}

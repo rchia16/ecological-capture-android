@@ -27,8 +27,13 @@ open class AiPreparationWorker(context: Context, parameters: WorkerParameters) :
         else "automatic" in tags && BackgroundAiPreparation.get(applicationContext).appForeground.value
     }
     protected open fun memoryAvailable() = VlmMemoryPressure.available(applicationContext)
+    protected open fun preparationDisabled(): Boolean {
+        val preferences = AiSuggestionPreferences(applicationContext)
+        return if ("automatic" in tags) !preferences.enabled.value else !preferences.backgroundEnabled.value
+    }
     protected open suspend fun ready(clipId: String, database: EcologicalCaptureDatabase) {
         currentCoroutineContext().ensureActive()
+        if (preparationDisabled()) return
         if (database.clipDao().getClip(clipId)?.let { it.approvalState != "DELETED" } == true && database.vlmRunDao().getRun(id.toString()) != null)
             AiPreparationNotifications.ready(applicationContext, clipId)
     }
@@ -37,16 +42,17 @@ open class AiPreparationWorker(context: Context, parameters: WorkerParameters) :
         val clipId = inputData.getString("clipId") ?: return@supervisorScope failure("Recording is unavailable.")
         val clip = database.clipDao().getClip(clipId)
         if (clip == null || clip.approvalState == "DELETED") return@supervisorScope failure("Recording is unavailable.")
+        val automatic = "automatic" in tags
+        // Being switched off is intentional, not a failed preparation; preserve any saved result.
+        if (preparationDisabled())
+            return@supervisorScope Result.success(workDataOf("skipped" to true))
         // Same work ID across system retries: a committed result is never generated or saved twice.
         if (database.vlmRunDao().getRun(id.toString()) != null) {
             ready(clipId, database)
             return@supervisorScope Result.success()
         }
-        val automatic = "automatic" in tags
-        val preferences = AiSuggestionPreferences(applicationContext)
         val coordinator = BackgroundAiPreparation.get(applicationContext)
         fun backgroundAllowed() = AiSuggestionPreferences(applicationContext).backgroundEnabled.value
-        if (automatic && !preferences.enabled.value) return@supervisorScope failure("Automatic AI preparation is off.")
         suspend fun noLongerEligible() = automatic && (database.annotationDao().current(clipId) != null || database.vlmRunDao().history(clipId).isNotEmpty())
         if (noLongerEligible()) return@supervisorScope Result.success(workDataOf("skipped" to true))
         if (automatic && !backgroundAllowed() && !coordinator.appForeground.value) {
@@ -63,6 +69,8 @@ open class AiPreparationWorker(context: Context, parameters: WorkerParameters) :
         val memoryPressure = AtomicBoolean(false)
         val execution = async {
             VlmExecutionGate.execute(wait = false) {
+                if (preparationDisabled())
+                    return@execute Result.success(workDataOf("skipped" to true))
                 if (noLongerEligible()) return@execute Result.success(workDataOf("skipped" to true))
                 val job = currentCoroutineContext()[Job]!!
                 val engine = createEngine()
