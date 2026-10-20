@@ -1,0 +1,16 @@
+[Unit]
+Description=Ecological Capture direct uploads and private catalogue
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/ecological-direct/source
+ExecStart=/usr/bin/apptainer run --cleanenv --containall --bind %h/projects/ecological-direct/config:/direct-config:ro --bind %h/projects/ecological-direct/state:/direct-state --bind %h/projects/ecological-direct/secrets:/direct-secrets:ro %h/projects/ecological-direct/direct.sif serve
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

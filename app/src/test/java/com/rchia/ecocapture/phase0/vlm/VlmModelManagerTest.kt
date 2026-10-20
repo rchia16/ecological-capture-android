@@ -9,7 +9,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VlmModelManagerTest {
-    private val directory = Files.createTempDirectory("qwen-model-policy-").toFile()
+    private val directory = Files.createTempDirectory("vlm-model-policy-").toFile()
     private val language = byteArrayOf(1, 2, 3, 4)
     private val projector = byteArrayOf(5, 6, 7)
     private fun hash(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
@@ -64,9 +64,9 @@ class VlmModelManagerTest {
         assertEquals(VlmFailure.ModelVerificationFailed, result.failure)
     }
     @Test fun officialBundleContractCannotDrift() {
-        assertEquals(2951255968L, VlmModelManager.OFFICIAL_FILES.sumOf { it.bytes })
-        assertEquals("Qwen3VL-4B-Instruct-Q4_K_M.gguf", VlmModelManager.OFFICIAL_FILES[0].filename)
-        assertEquals("66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a", VlmModelManager.OFFICIAL_FILES[0].sha256)
-        assertEquals("30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d", VlmModelManager.OFFICIAL_FILES[1].sha256)
+        assertEquals(545593888L, VlmModelManager.OFFICIAL_FILES.sumOf { it.bytes })
+        assertEquals("SmolVLM2-500M-Video-Instruct-Q8_0.gguf", VlmModelManager.OFFICIAL_FILES[0].filename)
+        assertEquals("6f67b8036b2469fcd71728702720c6b51aebd759b78137a8120733b4d66438bc", VlmModelManager.OFFICIAL_FILES[0].sha256)
+        assertEquals("921dc7e259f308e5b027111fa185efcbf33db13f6e35749ddf7f5cdb60ef520b", VlmModelManager.OFFICIAL_FILES[1].sha256)
     }
 }

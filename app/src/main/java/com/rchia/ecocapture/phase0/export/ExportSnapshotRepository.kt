@@ -10,7 +10,7 @@ object ExportSnapshotRepository {
         return MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
     }
     fun record(job: com.rchia.ecocapture.phase0.data.local.TransferJobEntity,
-               snapshot: CompletedEventSnapshot) = ExportSnapshotEntity(job.snapshotId, job.clipId,
+               snapshot: CompletedEventSnapshot, participantCode: String? = null) = ExportSnapshotEntity(job.snapshotId, job.clipId,
         job.previousSnapshotId, job.createdAtEpochMs, snapshot.event.sha256, snapshot.manifest.sha256,
-        snapshot.video.sha256, "READY", job.appVersion, null)
+        snapshot.video.sha256, "READY", job.appVersion, participantCode)
 }

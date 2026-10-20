@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface TransferEligibility {
     fun permitsSimulation(clipId: String): Boolean
+    fun participantCode(): String? = null
 }
 
 /** Debug-only disposable-clip allowlist. This is NOT consent or a production gateway credential. */

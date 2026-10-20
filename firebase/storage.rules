@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /uploads/{uid}/{snapshot}/approved-event.tar.age {
+      allow create: if resource == null && request.auth != null && request.auth.uid == uid
+        && firestore.get(/databases/(default)/documents/installations/$(uid)).data.enabled == true
+        && firestore.get(/databases/(default)/documents/studies/$(firestore.get(/databases/(default)/documents/installations/$(uid)).data.study_id)).data.enabled == true
+        && firestore.get(/databases/(default)/documents/packages/$(snapshot)).data.owner_uid == uid
+        && firestore.get(/databases/(default)/documents/packages/$(snapshot)).data.status == 'UPLOADING'
+        && request.resource.size == firestore.get(/databases/(default)/documents/packages/$(snapshot)).data.size_bytes
+        && request.resource.size <= 268435456
+        && request.resource.contentType == 'application/octet-stream'
+        && !('firebaseStorageDownloadTokens' in request.resource.metadata);
+      // Allow the owning SDK to probe an existing object after an interrupted completion.
+      allow get: if request.auth != null && request.auth.uid == uid
+        && firestore.get(/databases/(default)/documents/installations/$(uid)).data.enabled == true;
+      allow list, update, delete: if false;
+    }
+  }
+}

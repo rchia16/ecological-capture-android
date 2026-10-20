@@ -21,9 +21,17 @@ import java.util.concurrent.ConcurrentHashMap
 class TransferRuntime private constructor(context: Context) {
     val database = EcologicalCaptureDatabase.getInstance(context)
     val provisioning = TransferProvisioning(context)
+    val live: LiveTransferBackend? = if (BuildConfig.GATEWAY_TRANSFER_ENABLED)
+        Class.forName("com.rchia.ecocapture.phase0.transfer.gateway.GatewayBackend")
+            .getConstructor(Context::class.java).newInstance(context.applicationContext) as LiveTransferBackend
+        else if (BuildConfig.FIREBASE_TRANSFER_ENABLED)
+        Class.forName("com.rchia.ecocapture.phase0.transfer.firebase.FirebaseBackend")
+            .getConstructor(Context::class.java).newInstance(context.applicationContext) as LiveTransferBackend
+        else null
+    val eligibility: TransferEligibility = live ?: provisioning
     private val attempts = ConcurrentHashMap<String, Job>()
     val repository = TransferRepository(database, File(context.filesDir, "event-exports"),
-        File(context.filesDir, "recordings"), provisioning, FakeTransferTransport(fail = provisioning::consumeFailure), BuildConfig.VERSION_NAME,
+        File(context.filesDir, "recordings"), eligibility, live?.transport ?: FakeTransferTransport(fail = provisioning::consumeFailure), BuildConfig.VERSION_NAME,
         onAttempt = { id ->
             currentCoroutineContext()[Job]?.let { job ->
                 attempts[id] = job
@@ -31,12 +39,12 @@ class TransferRuntime private constructor(context: Context) {
             }
         })
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val initialized = scope.async { repository.recoverInterrupted() }
+    private val initialized = scope.async { repository.recoverInterrupted(); live?.recover() }
     init {
         scope.launch {
             initialized.await()
             database.transferJobDao().observeAll().collect { jobs ->
-                jobs.filter { it.state == "CANCELLED" }.forEach { attempts[it.jobId]?.cancel() }
+                jobs.filter { it.state == "CANCELLED" }.forEach { attempts[it.jobId]?.cancel(); live?.cancel(it.jobId) }
             }
         }
     }

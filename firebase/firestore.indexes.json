@@ -1,0 +1,1 @@
+{"indexes":[{"collectionGroup":"packages","queryScope":"COLLECTION","fields":[{"fieldPath":"study_id","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"}]}],"fieldOverrides":[]}

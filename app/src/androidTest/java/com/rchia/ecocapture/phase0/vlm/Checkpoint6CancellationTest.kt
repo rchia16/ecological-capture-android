@@ -18,7 +18,7 @@ class Checkpoint6CancellationTest {
         val context = instrumentation.targetContext
         val fixture = File(context.cacheDir, "checkpoint6-cancel-fixture.mp4")
         instrumentation.context.assets.open("checkpoint5/short.mp4").use { input -> fixture.outputStream().use { input.copyTo(it) } }
-        val engine = Qwen3VlEngine(context, FrameSamplingConfig(listOf(50), 320))
+        val engine = SmolVlm2Engine(context, FrameSamplingConfig(listOf(50), 320))
         var returned: VlmResult? = null
         try {
             assertEquals(VlmLoadResult.Ready, engine.load())

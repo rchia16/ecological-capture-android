@@ -1,0 +1,4 @@
+{
+  "recipients":["REPLACE_WITH_GB10_PUBLIC_AGE_RECIPIENT","REPLACE_WITH_RESEARCHER_RECOVERY_PUBLIC_AGE_RECIPIENT"],
+  "key_versions":["gb10-v1","researcher-recovery-v1"]
+}

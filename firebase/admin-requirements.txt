@@ -1,0 +1,2 @@
+-r functions/requirements.txt
+qrcode==8.2

@@ -8,7 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(entities = [ClipEntity::class, VlmRunEntity::class, AnnotationEntity::class,
-    ExportSnapshotEntity::class, TransferJobEntity::class], version = 3, exportSchema = false)
+    ExportSnapshotEntity::class, TransferJobEntity::class], version = 4, exportSchema = false)
 abstract class EcologicalCaptureDatabase : RoomDatabase() {
     abstract fun clipDao(): ClipDao
     abstract fun vlmRunDao(): VlmRunDao
@@ -17,6 +17,12 @@ abstract class EcologicalCaptureDatabase : RoomDatabase() {
     abstract fun transferJobDao(): TransferJobDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (column in listOf("encryptedArtifactPath", "ciphertextSha256", "encryptionKeyVersions", "remoteReceiptJson"))
+                    db.execSQL("ALTER TABLE transfer_jobs ADD COLUMN $column TEXT")
+            }
+        }
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS export_snapshots (
@@ -68,7 +74,7 @@ abstract class EcologicalCaptureDatabase : RoomDatabase() {
                     context.applicationContext,
                     EcologicalCaptureDatabase::class.java,
                     "ecological_capture.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
             }
     }
 }

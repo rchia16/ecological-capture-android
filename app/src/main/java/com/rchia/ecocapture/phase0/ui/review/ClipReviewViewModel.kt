@@ -38,7 +38,7 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
     )
     val vlmReview = VlmReviewWorkflow(
         VlmRunRepository(EcologicalCaptureDatabase.getInstance(application)),
-        VlmEngineFactory.create(application, VlmRuntimeMode.QWEN_PARTICIPANT), descriptionEditor, viewModelScope,
+        VlmEngineFactory.create(application, VlmRuntimeMode.SMOLVLM2_PARTICIPANT), descriptionEditor, viewModelScope,
         background = background, allowBackground = { backgroundPreparationEnabled.value },
         chargingOnly = { chargingOnly.value },
         automaticEnabled = aiPreferences.enabled, backgroundEnabled = aiPreferences.backgroundEnabled,

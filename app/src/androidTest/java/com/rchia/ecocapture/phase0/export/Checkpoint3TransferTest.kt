@@ -200,13 +200,13 @@ class Checkpoint3TransferTest {
                 legacy.version = 2
             }
             val migrated = Room.databaseBuilder(context, EcologicalCaptureDatabase::class.java, name)
-                .addMigrations(EcologicalCaptureDatabase.MIGRATION_2_3).build()
+                .addMigrations(EcologicalCaptureDatabase.MIGRATION_2_3, EcologicalCaptureDatabase.MIGRATION_3_4).build()
             try {
                 assertEquals(expected, RoomEventSnapshotStore(migrated).read(clip.clipId))
                 others.forEach { assertEquals(it, migrated.clipDao().getClip(it.clipId)) }
                 assertTrue(migrated.transferJobDao().observeAll().first().isEmpty())
                 assertTrue(migrated.exportSnapshotDao().observeAll().first().isEmpty())
-                assertEquals(3, migrated.openHelper.writableDatabase.version)
+                assertEquals(4, migrated.openHelper.writableDatabase.version)
             } finally { migrated.close() }
         }
     }

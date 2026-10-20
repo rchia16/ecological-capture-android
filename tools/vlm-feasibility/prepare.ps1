@@ -1,4 +1,4 @@
-param([switch]$SkipDownloads)
+param([switch]$SkipDownloads, [switch]$RuntimeOnly)
 $ErrorActionPreference = 'Stop'
 $artifacts = "$PSScriptRoot/artifacts"
 New-Item -ItemType Directory -Force $artifacts | Out-Null
@@ -9,6 +9,7 @@ $files = @(
     @{ Name = 'android-ndk-r28c-windows.zip'; Algorithm = 'SHA1'; Hash = '086bba43ff2f5eb0e387b15c8278bb4e0d89ba1d'; Url = 'https://dl.google.com/android/repository/android-ndk-r28c-windows.zip' }
 )
 foreach ($file in $files) {
+    if ($RuntimeOnly -and $file.Name.EndsWith('.gguf')) { continue }
     $path = Join-Path $artifacts $file.Name
     $valid = (Test-Path $path) -and ((Get-FileHash $path -Algorithm $file.Algorithm).Hash -eq $file.Hash)
     if (!$valid -and !$SkipDownloads) {

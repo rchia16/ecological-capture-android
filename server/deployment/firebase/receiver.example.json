@@ -1,0 +1,9 @@
+{
+  "root":"/receiver-data",
+  "study_id":"synthetic-study",
+  "endpoint":"https://australia-southeast1-PROJECT_ID.cloudfunctions.net/api",
+  "audience":"https://australia-southeast1-PROJECT_ID.cloudfunctions.net/api",
+  "bucket":"PROJECT_ID.firebasestorage.app",
+  "age_tool":"/receiver-bin/age",
+  "identity":"/receiver-secrets/gb10.agekey"
+}

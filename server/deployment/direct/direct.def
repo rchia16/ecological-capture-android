@@ -1,0 +1,39 @@
+Bootstrap: docker
+From: python:3.14-slim-bookworm
+
+%files
+    server/ecocapture_gateway /opt/ecocapture/server/ecocapture_gateway
+    server/ecocapture_direct /opt/ecocapture/server/ecocapture_direct
+    server/requirements.lock /opt/ecocapture/server/requirements.lock
+    server/deployment/direct /opt/ecocapture/server/deployment/direct
+    server/deployment/gb10/install_age.py /opt/ecocapture/install_age.py
+    server/tests/test_direct.py /opt/ecocapture/server/tests/test_direct.py
+    documentation/schemas /opt/ecocapture/documentation/schemas
+
+%post
+    set -eu
+    apt-get update
+    apt-get install -y --no-install-recommends nginx ca-certificates
+    python -m pip install --no-cache-dir -r /opt/ecocapture/server/requirements.lock qrcode==8.2
+    python /opt/ecocapture/install_age.py
+    python -m pip check
+    mkdir -p /direct-config /direct-state /direct-secrets
+    chmod -R a-w /opt/ecocapture
+
+%environment
+    export PYTHONPATH=/opt/ecocapture/server
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export OTEL_SDK_DISABLED=true
+
+%runscript
+    exec python -B /opt/ecocapture/server/deployment/direct/container_runtime.py "$@"
+
+%test
+    python -m pip check
+    age --version
+    python -B -W error::ResourceWarning -m unittest discover -s /opt/ecocapture/server/tests -p test_direct.py -v
+
+%labels
+    Purpose "Direct encrypted uploads and separate private researcher catalogue"
+    Age "v1.3.2 ARM64 SHA256 6b8dc4333c53a5a57c9e5834e3a48f92605d7154014cd07269ff3327db5d37f4"

@@ -27,7 +27,7 @@ class VlmModelManager(
     val directory: File,
     private val specs: List<VlmModelFileSpec> = OFFICIAL_FILES,
 ) {
-    constructor(context: Context) : this(File(context.filesDir, "models/qwen3vl"))
+    constructor(context: Context) : this(File(context.filesDir, "models/$MODEL_DIRECTORY"))
     init {
         require(specs.size == 2 && specs.map { it.filename }.distinct().size == 2)
         require(specs.all { it.filename == File(it.filename).name && it.bytes > 0 &&
@@ -87,11 +87,16 @@ class VlmModelManager(
     }
 
     companion object {
+        const val MODEL_DIRECTORY = "smolvlm2"
+        const val MODEL_ID = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct"
+        const val GGUF_REPOSITORY = "ggml-org/SmolVLM2-500M-Video-Instruct-GGUF"
+        const val MODEL_REVISION = "ccd7aae53bcb1997355c2f094959e72b3642ce17"
+        const val QUANTIZATION = "Q8_0"
         val OFFICIAL_FILES = listOf(
-            VlmModelFileSpec("Qwen3VL-4B-Instruct-Q4_K_M.gguf", 2497281664L,
-                "66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a"),
-            VlmModelFileSpec("mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf", 453974304L,
-                "30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d"),
+            VlmModelFileSpec("SmolVLM2-500M-Video-Instruct-Q8_0.gguf", 436808704L,
+                "6f67b8036b2469fcd71728702720c6b51aebd759b78137a8120733b4d66438bc"),
+            VlmModelFileSpec("mmproj-SmolVLM2-500M-Video-Instruct-Q8_0.gguf", 108785184L,
+                "921dc7e259f308e5b027111fa185efcbf33db13f6e35749ddf7f5cdb60ef520b"),
         )
     }
 }

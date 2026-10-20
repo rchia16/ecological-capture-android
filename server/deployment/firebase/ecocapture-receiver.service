@@ -1,0 +1,15 @@
+[Unit]
+Description=Ecological Capture Firebase receiver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+UMask=0077
+ExecStart=/usr/bin/apptainer run --cleanenv --containall --bind %h/server/ecocapture-receiver/config:/receiver-config:ro --bind %h/server/ecocapture-receiver/data:/receiver-data --bind %h/server/ecocapture-receiver/secrets:/receiver-secrets:ro --bind %h/server/ecocapture-receiver/bin:/receiver-bin:ro %h/server/ecocapture-receiver/receiver.sif
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+{
+  "functions": [{"source":"functions","codebase":"ecocapture","runtime":"python312","ignore":[".venv","__pycache__","tests"]}],
+  "firestore": {"rules":"firestore.rules","indexes":"firestore.indexes.json"},
+  "storage": {"rules":"storage.rules"},
+  "hosting": {
+    "public":"dashboard/dist",
+    "ignore":["firebase.json","**/.*","**/node_modules/**"],
+    "rewrites":[{"source":"/api/**","function":{"functionId":"api","region":"australia-southeast1"}}],
+    "headers":[{"source":"**","headers":[
+      {"key":"Cache-Control","value":"no-store"},
+      {"key":"X-Content-Type-Options","value":"nosniff"},
+      {"key":"Referrer-Policy","value":"no-referrer"},
+      {"key":"Content-Security-Policy","value":"default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self'; connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com; frame-src https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"}
+    ]}]
+  },
+  "emulators":{"auth":{"port":9099},"firestore":{"port":8086},"storage":{"port":9199},"functions":{"port":5001},"hosting":{"port":5000},"ui":{"enabled":false},"singleProjectMode":true}
+}

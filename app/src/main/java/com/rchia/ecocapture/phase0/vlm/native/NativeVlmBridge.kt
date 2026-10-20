@@ -9,8 +9,8 @@ data class NativeRuntimeInfo(val name: String, val commit: String, val abi: Stri
     val backend: String, val contextSize: Int, val threads: Int)
 
 /** Lazy JNI entry points; no native pointers leave this component. */
-internal object NativeQwenBindings {
-    init { System.loadLibrary("ecocapture_qwen3vl") }
+internal object NativeVlmBindings {
+    init { System.loadLibrary("ecocapture_vlm") }
     external fun nativeLoadModel(languagePath: String, projectorPath: String): Int
     external fun nativeUnload(): Int
     external fun nativeCancel()
@@ -21,13 +21,13 @@ internal object NativeQwenBindings {
     external fun nativeEndGeneration()
 }
 
-class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
+class NativeVlmBridge(private val manager: VlmModelManager) : VlmRuntime {
     override suspend fun load(): VlmLoadResult = lifecycle.withLock {
         if (owner != null) return@withLock VlmLoadResult.Failure(VlmFailure.NativeFailure(7))
         val inspection = manager.inspect()
         val bundle = inspection.bundle ?: return@withLock VlmLoadResult.Failure(
             inspection.failure ?: VlmFailure.ModelVerificationFailed)
-        if (manager.directory.name != "qwen3vl" || bundle.language.sha256 != VlmModelManager.OFFICIAL_FILES[0].sha256 ||
+        if (manager.directory.name != VlmModelManager.MODEL_DIRECTORY || bundle.language.sha256 != VlmModelManager.OFFICIAL_FILES[0].sha256 ||
             bundle.projector.sha256 != VlmModelManager.OFFICIAL_FILES[1].sha256) {
             return@withLock VlmLoadResult.Failure(VlmFailure.ModelVerificationFailed)
         }
@@ -40,20 +40,20 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
             nativeStarted = true
             loadingOwner = this
             val code = withContext(Dispatchers.IO) {
-                NativeQwenBindings.nativeLoadModel(bundle.language.file.absolutePath, bundle.projector.file.absolutePath)
+                NativeVlmBindings.nativeLoadModel(bundle.language.file.absolutePath, bundle.projector.file.absolutePath)
             }
             if (code == 0) { owner = this; VlmLoadResult.Ready }
             else VlmLoadResult.Failure(failureFor(code))
         } catch (cancelled: CancellationException) {
-            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeQwenBindings.nativeUnload() }
+            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeVlmBindings.nativeUnload() }
             throw cancelled
         } catch (_: OutOfMemoryError) {
-            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeQwenBindings.nativeUnload() }
+            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeVlmBindings.nativeUnload() }
             VlmLoadResult.Failure(VlmFailure.OutOfMemory)
         } catch (_: LinkageError) {
             VlmLoadResult.Failure(VlmFailure.NativeLibraryUnavailable)
         } catch (_: Exception) {
-            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeQwenBindings.nativeUnload() }
+            if (nativeStarted) withContext(NonCancellable + Dispatchers.IO) { NativeVlmBindings.nativeUnload() }
             VlmLoadResult.Failure(VlmFailure.NativeFailure(6))
         } finally {
             if (loadingOwner === this) loadingOwner = null
@@ -61,10 +61,10 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
     }
 
     override suspend fun unload(): VlmLoadResult = withContext(NonCancellable) { lifecycle.withLock {
-        if (owner !== this@NativeQwen3VlBridge) return@withLock VlmLoadResult.Ready
+        if (owner !== this@NativeVlmBridge) return@withLock VlmLoadResult.Ready
         withContext(NonCancellable + Dispatchers.IO) {
             try {
-                val code = NativeQwenBindings.nativeUnload()
+                val code = NativeVlmBindings.nativeUnload()
                 if (code == 0) { owner = null; VlmLoadResult.Ready }
                 else VlmLoadResult.Failure(failureFor(code))
             } catch (_: LinkageError) { VlmLoadResult.Failure(VlmFailure.NativeLibraryUnavailable) }
@@ -72,11 +72,11 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
     } }
 
     override suspend fun generate(samples: SampledFrames, prompt: VlmPromptDefinition,
-        config: QwenGenerationConfig): NativeGenerationResult = lifecycle.withLock {
+        config: VlmGenerationConfig): NativeGenerationResult = lifecycle.withLock {
         if (owner !== this) return@withLock NativeGenerationResult.Failure(VlmFailure.ModelNotLoaded)
         try {
             withContext(Dispatchers.IO) {
-                val code = NativeQwenBindings.nativeBeginGeneration()
+                val code = NativeVlmBindings.nativeBeginGeneration()
                 if (code != 0) return@withContext NativeGenerationResult.Failure(failureFor(code))
                 val caller = currentCoroutineContext()[Job]!!
                 // Independent watcher observes cancellation while JNI blocks; always joined in finally.
@@ -89,12 +89,12 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
                 try {
                     for (frame in samples.frames) {
                         currentCoroutineContext().ensureActive()
-                        val added = NativeQwenBindings.nativeAddFrame(frame.bitmap)
+                        val added = NativeVlmBindings.nativeAddFrame(frame.bitmap)
                         frame.close() // Native owns an RGB copy; free Java pixels immediately.
                         if (added != 0) return@withContext NativeGenerationResult.Failure(failureFor(added))
                     }
                     currentCoroutineContext().ensureActive()
-                    val response = NativeQwenBindings.nativeGenerate(prompt.systemPrompt.toByteArray(Charsets.UTF_8),
+                    val response = NativeVlmBindings.nativeGenerate(prompt.systemPrompt.toByteArray(Charsets.UTF_8),
                         prompt.userPrompt.toByteArray(Charsets.UTF_8), config.maxOutputTokens)
                     currentCoroutineContext().ensureActive()
                     require(response.size == 4)
@@ -103,7 +103,7 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
                     else NativeGenerationResult.Success(response[1].toString(Charsets.UTF_8),
                         response[2].toString(Charsets.UTF_8), response[3])
                 } finally {
-                    withContext(NonCancellable) { watcher.cancelAndJoin(); NativeQwenBindings.nativeEndGeneration() }
+                    withContext(NonCancellable) { watcher.cancelAndJoin(); NativeVlmBindings.nativeEndGeneration() }
                 }
             }
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -115,11 +115,11 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
     fun requestCancel() {
         // Native cancellation is lock-free so it can interrupt a load holding lifecycle.
         if (owner !== this && loadingOwner !== this) return
-        try { NativeQwenBindings.nativeCancel() } catch (_: LinkageError) { }
+        try { NativeVlmBindings.nativeCancel() } catch (_: LinkageError) { }
     }
 
     fun runtimeInfo(): NativeRuntimeInfo {
-        val parts = NativeQwenBindings.nativeGetRuntimeInfo().split('|')
+        val parts = NativeVlmBindings.nativeGetRuntimeInfo().split('|')
         require(parts.size == 6)
         return NativeRuntimeInfo(parts[0], parts[1], parts[2], parts[3], parts[4].toInt(), parts[5].toInt())
     }
@@ -128,8 +128,8 @@ class NativeQwen3VlBridge(private val manager: VlmModelManager) : QwenRuntime {
         const val RUNTIME_COMMIT = "0c1e57098bba43ac29e6e3b677cdceebdd22334f"
         val EXPECTED_RUNTIME = NativeRuntimeInfo("llama.cpp/libmtmd", RUNTIME_COMMIT, "arm64-v8a", "CPU", 8192, 4)
         private val lifecycle = Mutex()
-        @Volatile private var owner: NativeQwen3VlBridge? = null
-        @Volatile private var loadingOwner: NativeQwen3VlBridge? = null
+        @Volatile private var owner: NativeVlmBridge? = null
+        @Volatile private var loadingOwner: NativeVlmBridge? = null
         internal fun failureFor(code: Int): VlmFailure = when (code) {
             1 -> VlmFailure.ModelLoadFailed
             2 -> VlmFailure.MmprojLoadFailed

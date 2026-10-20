@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ecological Capture · Research catalogue</title><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head>
+<body>
+<header><div><span class="eyebrow">ECOLOGICAL CAPTURE</span><h1>Research catalogue</h1></div><div class="account"><span id="account">Researcher access</span><button id="signout" hidden>Sign out</button></div></header>
+<main><p id="message" role="status" aria-live="polite">Sign in with your approved researcher account.</p><button id="signin" class="primary">Sign in with Google</button>
+<section id="workspace" hidden>
+<div class="toolbar"><label>Study<select id="study"></select></label><button id="refresh">Refresh catalogue</button></div>
+<div class="stats"><article><span id="verified">0</span>Verified on GB10</article><article><span id="waiting">0</span>Awaiting GB10</article><article><span id="attention">0</span>Needs attention</article></div>
+<p class="note">Videos and annotations stay encrypted in cloud storage. Open verified files through your approved GB10 access. Receipt on GB10 is separate from archival.</p>
+<form id="filters" class="filters"><label>Participant code<input id="participant" type="search" placeholder="Filter participant"></label><label>Status<select id="status"><option value="">All statuses</option><option value="UPLOADING">Uploading</option><option value="AWAITING_GB10">Awaiting GB10</option><option value="VERIFIED_GB10">Verified on GB10</option><option value="NEEDS_ATTENTION">Needs attention</option></select></label><label>From (UTC)<input id="from" type="date"></label><label>To (UTC)<input id="to" type="date"></label></form>
+<div class="toolbar"><p id="count">0 recording snapshots</p><button id="export" disabled>Export filtered CSV</button></div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Recording catalogue"><table><caption class="sr-only">Recording snapshots and GB10 receipts</caption><thead><tr><th scope="col">Participant</th><th scope="col">Recorded (UTC)</th><th scope="col">Event ID</th><th scope="col">Snapshot ID</th><th scope="col">Status</th><th scope="col">GB10 relative path</th></tr></thead><tbody id="recordings"></tbody></table></div><p id="empty">No recordings match these filters.</p>
+</section></main><footer>Approved recordings · Encrypted transfer · Verified receipt</footer>
+</body></html>

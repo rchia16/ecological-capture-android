@@ -4,7 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Deterministic workflow simulation. Does not decode video, sample frames, or load Qwen. */
+/** Deterministic workflow simulation. Does not decode video, sample frames, or load models. */
 class FakeVlmEngine(
     private val delayMs: Long = 300,
     private val output: String = DEFAULT_OUTPUT,

@@ -41,7 +41,7 @@ class VlmReviewWorkflowTest {
     }
     private fun open() {
         database = Room.databaseBuilder(context, EcologicalCaptureDatabase::class.java, databaseName)
-            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2, EcologicalCaptureDatabase.MIGRATION_2_3).build()
+            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2, EcologicalCaptureDatabase.MIGRATION_2_3, EcologicalCaptureDatabase.MIGRATION_3_4).build()
     }
     private suspend fun newWorkflow(fake: VlmEngine = FakeVlmEngine(delayMs = 50)) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)

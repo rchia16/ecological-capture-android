@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ecological Capture · Research catalogue</title><link rel="stylesheet" href="/assets/style.css"><script type="module" src="/assets/app.js"></script></head>
+<body>
+<header><div><span class="eyebrow">ECOLOGICAL CAPTURE</span><h1>Research catalogue</h1></div><div><strong id="study">Private research workspace</strong><p id="account">Access through Tailscale</p></div></header>
+<main>
+<p id="message" role="status" aria-live="polite">Checking researcher access…</p>
+<section id="workspace" hidden>
+<p class="intro">Organise shared recordings on GB10. Downloads create working copies; originals remain together with their annotations and manifest.</p>
+<form id="filters" class="filters">
+<label>Participant<input id="participant" type="search" placeholder="Participant code" maxlength="64"></label>
+<label>Receipt<select id="status"><option value="">All receipts</option><option value="RECEIVING">Uploading</option><option value="AWAITING_GB10">Awaiting verification</option><option value="VERIFIED_GB10">Verified on GB10</option><option value="NEEDS_ATTENTION">Needs attention</option></select></label>
+<label>Review<select id="review"><option value="">All reviews</option><option value="TO_REVIEW">To review</option><option value="IN_REVIEW">In review</option><option value="REVIEWED">Reviewed</option></select></label>
+<label>Tag<input id="tag" placeholder="Exact tag" maxlength="64"></label>
+<label>From (UTC)<input id="from" type="date"></label><label>To (UTC)<input id="to" type="date"></label>
+<label>Versions<select id="versions"><option value="latest">Latest snapshot</option><option value="all">All snapshots</option></select></label>
+<button type="submit" class="primary" id="refresh">Apply filters / refresh</button>
+</form>
+<div class="toolbar"><p id="count">No recordings loaded</p><button id="export" disabled>Export filtered CSV</button></div>
+<div id="recordings"></div><p id="empty" hidden>No recordings match these filters.</p>
+<p class="note">“Verified on GB10” confirms successful receiving. Archival requires a separate verified copy to an approved destination. No automatic deletion is enabled.</p>
+</section>
+<dialog id="editor" aria-labelledby="editor-title"><form id="edit-form">
+<h2 id="editor-title">Organise recording</h2><p id="edit-context"></p>
+<label>Shared tags (comma separated)<input id="edit-tags" maxlength="2100"></label>
+<label>Shared researcher notes<textarea id="edit-notes" rows="7" maxlength="8000"></textarea></label>
+<p class="note">Tags and notes apply to every snapshot of this event. They do not change participant annotations or original files.</p>
+<p id="edit-message" role="status" aria-live="polite"></p>
+<div class="toolbar"><button type="button" id="edit-close">Close</button><button type="submit" id="edit-save" class="primary">Save tags and notes</button></div>
+</form></dialog>
+</main><footer>Private catalogue · Immutable recordings · Verified receipt</footer>
+</body></html>

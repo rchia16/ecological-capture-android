@@ -15,13 +15,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.first
 
-/** Explicit user requests only. No WorkManager/network submission or automatic resume on startup. */
+/** Snapshot creation follows an explicit Send. Optional live transport persists that request. */
 class TransferRepository(
     private val db: EcologicalCaptureDatabase,
     private val exportRoot: File,
     private val recordingRoot: File,
     private val eligibility: TransferEligibility,
-    private val transport: FakeTransferTransport,
+    private val transport: TransferTransport,
     private val appVersion: String,
     private val validateVideo: (File) -> Unit = RoomEventSnapshotStore::validateVideo,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -47,10 +47,10 @@ class TransferRepository(
         val source = eligibleSource(clipId)
         val version = ExportSnapshotRepository.version(source)
         val latest = jobs.latest(clipId)
-        if (latest != null && latest.sourceVersionSha256 == version && latest.state != "CANCELLED") return@withLock latest
+        if (latest != null && latest.transportMode == transport.mode && latest.sourceVersionSha256 == version && latest.state != "CANCELLED") return@withLock latest
         val time = clock()
         val job = TransferJobEntity(UUID.randomUUID().toString(), UUID.randomUUID().toString(), clipId,
-            "PREPARING", time, time, 0, 0, null, "SIMULATION", version, snapshots.latest(clipId)?.snapshotId, appVersion)
+            "PREPARING", time, time, 0, 0, null, transport.mode, version, snapshots.latest(clipId)?.snapshotId, appVersion)
         db.withTransaction {
             check(ExportSnapshotRepository.version(eligibleSource(clipId)) == version) { "SOURCE_CHANGED_RETRY" }
             jobs.insert(job)
@@ -67,7 +67,8 @@ class TransferRepository(
             if (latest.state != "FAILED_RETRYABLE") return@withLock latest
             check(ExportSnapshotRepository.version(eligibleSource(job.clipId)) == job.sourceVersionSha256) { "SOURCE_CHANGED_RETRY" }
             val ready = snapshots.get(job.snapshotId) != null
-            val next = if (ready) "SIMULATING" else "PREPARING"
+            check(latest.transportMode == transport.mode) { "TRANSPORT_CHANGED" }
+            val next = if (ready) transport.activeState else "PREPARING"
             check(jobs.transition(jobId, "FAILED_RETRYABLE", next, 0, clock(), null) == 1)
             jobs.countRetry(jobId)
             onAttempt(jobId)
@@ -93,13 +94,14 @@ class TransferRepository(
                 }
             }
             val completed = ApprovedEventSnapshotBuilder(guardedStore, exportRoot, recordingRoot, validateVideo)
-                .build(job.clipId, SnapshotIdentity(job.snapshotId, job.createdAtEpochMs, job.appVersion, job.previousSnapshotId))
+                .build(job.clipId, SnapshotIdentity(job.snapshotId, job.createdAtEpochMs, job.appVersion, job.previousSnapshotId,
+                    eligibility.participantCode()))
             db.withTransaction {
                 check(eligibility.permitsSimulation(job.clipId) && jobs.get(job.jobId)?.state == "PREPARING") { "JOB_CANCELLED" }
                 check(ExportSnapshotRepository.version(sourceStore.read(job.clipId)) == job.sourceVersionSha256) { "SOURCE_CHANGED_RETRY" }
                 snapshots.supersede(job.clipId)
-                snapshots.insert(ExportSnapshotRepository.record(job, completed))
-                check(jobs.transition(job.jobId, "PREPARING", "SIMULATING", 0, clock(), null) == 1)
+                snapshots.insert(ExportSnapshotRepository.record(job, completed, eligibility.participantCode()))
+                check(jobs.transition(job.jobId, "PREPARING", transport.activeState, 0, clock(), null) == 1)
             }
             published = true
             simulate(job)
@@ -123,16 +125,17 @@ class TransferRepository(
             check(EventManifest.digest(File(bundle, "video.mp4"), checkActive).sha256 == row.mp4Sha256 &&
                 EventManifest.digest(File(bundle, "event.json"), checkActive).sha256 == row.eventJsonSha256 &&
                 EventManifest.digest(File(bundle, "manifest.json"), checkActive).sha256 == row.manifestSha256) { "SNAPSHOT_INTEGRITY_FAILED" }
-            transport.simulate { percent ->
+            val completedState = transport.deliver(job, bundle) { percent ->
                 check(eligibility.permitsSimulation(job.clipId)) { "INSTALLATION_NOT_ENABLED" }
-                check(jobs.transition(job.jobId, "SIMULATING", "SIMULATING", percent, clock(), null) == 1) { "JOB_CANCELLED" }
+                check(jobs.transition(job.jobId, transport.activeState, transport.activeState, percent, clock(), null) == 1) { "JOB_CANCELLED" }
             }
-            jobs.transition(job.jobId, "SIMULATING", "SIMULATED_COMPLETE", 100, clock(), null)
+            if (completedState != transport.activeState)
+                jobs.transition(job.jobId, transport.activeState, completedState, 100, clock(), null)
         } catch (cancelled: CancellationException) {
-            withContext(NonCancellable) { jobs.transition(job.jobId, "SIMULATING", "FAILED_RETRYABLE", 0, clock(), "INTERRUPTED") }
+            withContext(NonCancellable) { jobs.transition(job.jobId, transport.activeState, "FAILED_RETRYABLE", 0, clock(), "INTERRUPTED") }
             throw cancelled
         } catch (_: Exception) {
-            jobs.transition(job.jobId, "SIMULATING", "FAILED_RETRYABLE", 0, clock(), "SIMULATION_FAILED")
+            jobs.transition(job.jobId, transport.activeState, "FAILED_RETRYABLE", 0, clock(), "TRANSFER_FAILED")
         }
     }
 

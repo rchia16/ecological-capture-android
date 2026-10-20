@@ -32,9 +32,13 @@ fun ApprovedRecordingsScreen(viewModel: TransferViewModel, onBack: () -> Unit,
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     item {
                         Text("Your approved videos remain on this phone. Sending requires a separate action.", fontSize = 18.sp)
-                        Text("Wi-Fi only is the default for future live sending.", fontSize = 18.sp)
-                        Text("Local transfer simulation. Nothing leaves this phone.", fontSize = 18.sp)
-                        if (com.rchia.ecocapture.phase0.BuildConfig.DEBUG) OutlinedButton(
+                        Text(if (viewModel.liveSending) "Encrypted uploads wait for Wi-Fi. Uploading and verification on GB10 are separate steps."
+                            else "Local transfer simulation. Nothing leaves this phone.", fontSize = 18.sp)
+                        if (viewModel.liveSending) OutlinedButton(onClick = { viewModel.enrol(context) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                            Text("STUDY ENROLMENT", fontSize = 18.sp)
+                        }
+                        if (!viewModel.liveSending && com.rchia.ecocapture.phase0.BuildConfig.DEBUG) OutlinedButton(
                             onClick = { context.startActivity(android.content.Intent().setClassName(context.packageName,
                                 "com.rchia.ecocapture.phase0.transfer.TransferSimulationActivity")) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
@@ -59,8 +63,8 @@ fun ApprovedRecordingsScreen(viewModel: TransferViewModel, onBack: () -> Unit,
                                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                                 }
                                 if (row.changed) Text("New local changes since last send. Send updated recording to create a new version.", fontSize = 18.sp)
-                                val busy = row.job?.state in setOf("PREPARING", "SIMULATING")
-                                val sameFinished = row.job?.state == "SIMULATED_COMPLETE" && !row.changed
+                                val busy = row.job?.state in setOf("PREPARING", "SIMULATING", "QUEUED", "ENCRYPTING", "UPLOADING")
+                                val sameFinished = row.job?.state in setOf("SIMULATED_COMPLETE", "AWAITING_GB10", "VERIFIED_GB10", "NEEDS_ATTENTION") && !row.changed
                                 Button(onClick = { viewModel.send(row.clip.clipId) },
                                     enabled = row.enabled && row.available && !captureBusy && !busy && !sameFinished &&
                                         (row.job?.state != "FAILED_RETRYABLE" || row.changed),
@@ -69,10 +73,10 @@ fun ApprovedRecordingsScreen(viewModel: TransferViewModel, onBack: () -> Unit,
                                 }
                                 if (row.job?.state == "FAILED_RETRYABLE" && !row.changed) Button(
                                     onClick = { viewModel.retry(row.job.jobId) }, enabled = row.enabled && row.available && !captureBusy,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("RETRY SIMULATION", fontSize = 18.sp) }
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(if (viewModel.liveSending) "RETRY SENDING" else "RETRY SIMULATION", fontSize = 18.sp) }
                                 if (busy || row.job?.state == "FAILED_RETRYABLE") Button(
                                     onClick = { row.job?.let { viewModel.cancel(it.jobId) } },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text("CANCEL SIMULATION", fontSize = 18.sp) }
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) { Text(if (viewModel.liveSending) "CANCEL SENDING" else "CANCEL SIMULATION", fontSize = 18.sp) }
                                 OutlinedButton(onClick = { onReview(row.clip) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
                                     Text("REVIEW RECORDING", fontSize = 18.sp)
                                 }

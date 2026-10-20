@@ -6,8 +6,8 @@ import android.os.PowerManager
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwenBindings
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwen3VlBridge
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBindings
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBridge
 import java.io.File
 import java.security.MessageDigest
 import kotlinx.coroutines.*
@@ -44,7 +44,7 @@ class QwenModelBenchmarkTest {
             .put("frameCount", count).put("maxLongEdge", edge).put("warmup", args.getString("warmup") == "true")
             .put("repetition", args.getString("repetition")!!.toInt()).put("success", false)
             .put("crash", false).put("oom", false).put("pid", android.os.Process.myPid())
-            .put("runtimeCommit", NativeQwen3VlBridge.RUNTIME_COMMIT).put("promptVersion", VlmPrompt.VERSION)
+            .put("runtimeCommit", NativeVlmBridge.RUNTIME_COMMIT).put("promptVersion", VlmPrompt.VERSION)
             .put("systemPrompt", VlmPrompt.definition.systemPrompt).put("userPrompt", VlmPrompt.definition.userPrompt)
             .put("sampler", "greedy").put("temperature", 0).put("maxOutputTokens", maxOutputTokens)
             .put("contextSize", 8192).put("threads", 4).put("batchSize", 512).put("backend", "CPU")
@@ -70,7 +70,12 @@ class QwenModelBenchmarkTest {
         try {
             val sourceHash = hash(source)
             report.put("sourceSha256", sourceHash).put("thermalBefore", power.currentThermalStatus).put("memoryBefore", memory())
-            val specs = if (model == "A") VlmModelManager.OFFICIAL_FILES else listOf(
+            // Keep the historical comparison pinned independently of the active app model.
+            val specs = if (model == "A") listOf(
+                VlmModelFileSpec("Qwen3VL-4B-Instruct-Q4_K_M.gguf", 2497281664L,
+                    "66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a"),
+                VlmModelFileSpec("mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf", 453974304L,
+                    "30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d")) else listOf(
                 VlmModelFileSpec("Qwen3VL-2B-Instruct-Q4_K_M.gguf", 1107409952L, "089d75c52f4b7ffc56ba998ffc50aae89fcafc755f9e7208aacca281dca6c2ae"),
                 VlmModelFileSpec("mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf", 445053216L, "f9a68fabba69c3b81e153367b2c7521030b0fa8bb0de400c9599c8e6725f9c82"))
             checkpoint("verification")
@@ -81,12 +86,12 @@ class QwenModelBenchmarkTest {
             report.put("verificationMs", SystemClock.elapsedRealtime() - verifyStart)
                 .put("languageModelSha256", bundle.language.sha256).put("mmprojSha256", bundle.projector.sha256)
                 .put("languageModelFilename", bundle.language.file.name).put("projectorFilename", bundle.projector.file.name)
-            assertEquals("llama.cpp/libmtmd|${NativeQwen3VlBridge.RUNTIME_COMMIT}|arm64-v8a|CPU|8192|4", NativeQwenBindings.nativeGetRuntimeInfo())
+            assertEquals("llama.cpp/libmtmd|${NativeVlmBridge.RUNTIME_COMMIT}|arm64-v8a|CPU|8192|4", NativeVlmBindings.nativeGetRuntimeInfo())
             checkpoint("loading")
             val totalStart = SystemClock.elapsedRealtime()
             val loadStart = SystemClock.elapsedRealtime()
             nativeStarted = true
-            val loaded = withContext(Dispatchers.IO) { NativeQwenBindings.nativeLoadModel(bundle.language.file.path, bundle.projector.file.path) }
+            val loaded = withContext(Dispatchers.IO) { NativeVlmBindings.nativeLoadModel(bundle.language.file.path, bundle.projector.file.path) }
             report.put("modelLoadMs", SystemClock.elapsedRealtime() - loadStart).put("loadStatus", loaded)
             assertEquals(0, loaded)
             report.put("memoryLoaded", memory())
@@ -101,11 +106,11 @@ class QwenModelBenchmarkTest {
             checkpoint("inference")
             val ingestionStart = SystemClock.elapsedRealtime()
             val response = withContext(Dispatchers.IO) {
-                assertEquals(0, NativeQwenBindings.nativeBeginGeneration())
+                assertEquals(0, NativeVlmBindings.nativeBeginGeneration())
                 inferenceStarted = true
-                decoded.frames.forEach { frame -> assertEquals(0, NativeQwenBindings.nativeAddFrame(frame.bitmap)) }
+                decoded.frames.forEach { frame -> assertEquals(0, NativeVlmBindings.nativeAddFrame(frame.bitmap)) }
                 report.put("rgbIngestionMs", SystemClock.elapsedRealtime() - ingestionStart)
-                NativeQwenBindings.nativeGenerate(VlmPrompt.definition.systemPrompt.toByteArray(Charsets.UTF_8),
+                NativeVlmBindings.nativeGenerate(VlmPrompt.definition.systemPrompt.toByteArray(Charsets.UTF_8),
                     VlmPrompt.definition.userPrompt.toByteArray(Charsets.UTF_8), maxOutputTokens)
             }
             report.put("totalElapsedMs", SystemClock.elapsedRealtime() - totalStart).put("memoryAfterGeneration", memory())
@@ -133,8 +138,8 @@ class QwenModelBenchmarkTest {
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
                 try {
-                    if (inferenceStarted) NativeQwenBindings.nativeEndGeneration()
-                    if (nativeStarted) report.put("unloadStatus", NativeQwenBindings.nativeUnload())
+                    if (inferenceStarted) NativeVlmBindings.nativeEndGeneration()
+                    if (nativeStarted) report.put("unloadStatus", NativeVlmBindings.nativeUnload())
                 } finally {
                     samples?.close()
                     report.put("overallElapsedMs", SystemClock.elapsedRealtime() - overallStart)

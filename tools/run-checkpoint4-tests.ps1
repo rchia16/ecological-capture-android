@@ -27,7 +27,7 @@ if ($DeviceRecording) {
 }
 Invoke-Adb install -r "$project/app/build/outputs/apk/debug/app-debug.apk"
 Invoke-Adb install -r "$project/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-& "$PSScriptRoot/provision-qwen-models.ps1" -Serial $Serial -Adb $Adb
+& "$PSScriptRoot/provision-smolvlm2-models.ps1" -Serial $Serial -Adb $Adb
 if ($DeviceRecording) {
     Invoke-Adb shell run-as $package cp "files/recordings/$DeviceRecording" cache/checkpoint4-playback.mp4
 } else {

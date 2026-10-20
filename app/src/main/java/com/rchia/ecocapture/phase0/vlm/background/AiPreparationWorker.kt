@@ -20,7 +20,7 @@ open class AiPreparationWorker(context: Context, parameters: WorkerParameters) :
 
     protected open fun openDatabase() = EcologicalCaptureDatabase.getInstance(applicationContext)
     protected open fun closeDatabase(database: EcologicalCaptureDatabase) = Unit
-    protected open fun createEngine(): VlmEngine = VlmEngineFactory.create(applicationContext, VlmRuntimeMode.QWEN_PARTICIPANT)
+    protected open fun createEngine(): VlmEngine = VlmEngineFactory.create(applicationContext, VlmRuntimeMode.SMOLVLM2_PARTICIPANT)
     protected open fun preparationAllowed(): Boolean {
         val preferences = AiSuggestionPreferences(applicationContext)
         return if (preferences.backgroundEnabled.value) AiPreparationNotifications.allowed(applicationContext)

@@ -1,10 +1,14 @@
-# Qwen3-VL native component
+# Local SmolVLM2 native component
 
-Checkpoint 6 adds RGB frame ingestion and local greedy generation to the verified model lifecycle. Checkpoint 7 enables it in participant review through `VlmRuntimeMode.QWEN_PARTICIPANT`. Debug engineering tests select `QWEN_ENGINEERING`; isolated workflow checks can still select simulation.
+The active model is now **SmolVLM2-500M-Video-Instruct, Q8_0**, with three chronological frames at 15%, 50% and 85% (maximum long edge 1024). See [current setup and validation](../tools/smolvlm2/README.md). Historical Qwen measurements below do not describe SmolVLM2 performance.
+
+The Android library is `ecocapture_vlm`; Kotlin uses `SmolVlm2Engine`, `NativeVlmBridge` and `SMOLVLM2_PARTICIPANT` / `SMOLVLM2_ENGINEERING`. The pinned llama.cpp commit already supports SmolVLM2. Generation applies the verified model's conversation template, rather than forcing ChatML. Old persisted model IDs and descriptions are retained.
+
+The original Checkpoint 6 added RGB frame ingestion and local greedy generation to the verified model lifecycle. Checkpoint 7 enabled it in participant review. Isolated workflow checks can still select simulation.
 
 ## Build
 
-Run `tools/vlm-feasibility/prepare.ps1` to provision the exact model files, Android NDK r28c and pinned llama.cpp checkout. With already downloaded artifacts, use `-SkipDownloads`. CMake rejects a modified checkout or a different commit from `LLAMA_CPP_COMMIT`.
+Run `tools/vlm-feasibility/prepare.ps1 -RuntimeOnly` to prepare Android NDK r28c and the pinned llama.cpp checkout, then `python tools/smolvlm2/prepare.py` for the exact current model files. With already downloaded runtime artifacts, use `-SkipDownloads`. CMake rejects a modified checkout or a different commit from `LLAMA_CPP_COMMIT`.
 
 Install CMake 3.29.2 and Ninja and make them available to Android Gradle Plugin. This workspace uses `C:/Strawberry/c/bin`. Android Gradle Plugin uses the NDK at `tools/vlm-feasibility/artifacts/android-ndk-r28c`. Build `:app:assembleDebug` or `:app:assembleRelease`; both now use native CMake Release optimization. The component supports ARM64 CPU only and uses static libc++. Source and model downloads are ignored artifacts; the APK contains the JNI library, not GGUF files.
 
@@ -19,7 +23,7 @@ Build `:app:test :app:assembleDebug :app:assembleDebugAndroidTest`, then run:
 
 Alternatively provide `-PlaybackFixture <valid-local-HEVC-mp4>`. The runner rejects text-damaged MP4 exports. The device-recording option copies the named recording into cache and reads that copy; it does not alter the original or its database record. Both runners use replacement installs and direct instrumentation, preserving app data.
 
-The model provisioning script copies the already staged Checkpoint 0 bundle from `/data/local/tmp/ecocapture-qwen3vl-spike` into app-owned `files/models/qwen3vl`, checks SHA-256 before and after copying, and renames each verified temporary file. Do not provision models during a load. Runtime inspection checks both complete files again before every load.
+`tools/provision-smolvlm2-models.ps1` stages verified local weights under `/data/local/tmp/ecocapture-smolvlm2` and copies them into app-owned `files/models/smolvlm2`, checking SHA-256 before and after copying and publishing each verified temporary file. It stops the app before provisioning. Runtime inspection checks both complete files again before every load. Existing Qwen files remain untouched.
 
 The heavy test is explicitly opt-in. It checks runtime provenance, failed partial loads, repeated load/unload and a Media3 HEVC rendered frame after unload. Memory/timing reports are written into ignored `tools/vlm-feasibility/artifacts/results/checkpoint4`.
 

@@ -59,8 +59,8 @@ class Checkpoint6InferenceTest {
         }
         var database = Room.databaseBuilder(context, EcologicalCaptureDatabase::class.java, "checkpoint6-engineering.db").build()
         val clipId = "engineering-$name"
-        val engine = VlmEngineFactory.create(context, VlmRuntimeMode.QWEN_ENGINEERING,
-            FrameSamplingConfig(percentages, edge), QwenGenerationConfig())
+        val engine = VlmEngineFactory.create(context, VlmRuntimeMode.SMOLVLM2_ENGINEERING,
+            FrameSamplingConfig(percentages, edge), VlmGenerationConfig())
         val start = SystemClock.elapsedRealtime()
         try {
             database.clipDao().insert(ClipEntity(clipId, source.absolutePath, null, System.currentTimeMillis(), 0,

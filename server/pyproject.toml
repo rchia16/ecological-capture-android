@@ -10,9 +10,12 @@ dependencies = ["fastapi==0.143.0", "uvicorn==0.54.0"]
 
 [project.optional-dependencies]
 test = ["httpx==0.28.1"]
+direct = ["qrcode==8.2"]
+firebase-receiver = ["google-cloud-storage==3.1.0", "google-auth==2.62.0", "requests==2.34.2"]
 
 [tool.setuptools.package-data]
 ecocapture_gateway = ["schemas/*.json"]
+ecocapture_direct = ["web/*.html", "web/*.js", "web/*.css", "web/package.json"]
 
 [tool.setuptools.packages.find]
-include = ["ecocapture_gateway*"]
+include = ["ecocapture_gateway*", "ecocapture_firebase*", "ecocapture_direct*"]

@@ -3,7 +3,7 @@ package com.rchia.ecocapture.phase0.vlm
 import android.content.Context
 import android.os.SystemClock
 import com.rchia.ecocapture.phase0.BuildConfig
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwen3VlBridge
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBridge
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -12,12 +12,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
-data class QwenGenerationConfig(val maxOutputTokens: Int = 384) {
+data class VlmGenerationConfig(val maxOutputTokens: Int = 384) {
     init { require(maxOutputTokens in 1..1024) }
 }
 
-/** Checkpoint 6 device comparison: temporal coverage with less cost than five frames. */
-object QwenPhase2Defaults {
+/** Preserve chronological coverage; new-model device performance is measured separately. */
+object VlmDefaults {
     val sampling: FrameSamplingConfig get() = FrameSamplingConfig(listOf(15, 50, 85), 1024)
 }
 
@@ -26,22 +26,22 @@ sealed interface NativeGenerationResult {
     data class Failure(val reason: VlmFailure) : NativeGenerationResult
 }
 
-internal interface QwenRuntime {
+internal interface VlmRuntime {
     suspend fun load(): VlmLoadResult
-    suspend fun generate(samples: SampledFrames, prompt: VlmPromptDefinition, config: QwenGenerationConfig): NativeGenerationResult
+    suspend fun generate(samples: SampledFrames, prompt: VlmPromptDefinition, config: VlmGenerationConfig): NativeGenerationResult
     suspend fun unload(): VlmLoadResult
 }
 
 /** Coarse visual-context assistant. Only saved frames and the fixed ecological prompt enter JNI. */
-class Qwen3VlEngine internal constructor(
-    private val runtime: QwenRuntime,
+class SmolVlm2Engine internal constructor(
+    private val runtime: VlmRuntime,
     private val sampler: VlmFrameSampler = VlmFrameSampler(),
-    private val sampling: FrameSamplingConfig = QwenPhase2Defaults.sampling,
-    private val generation: QwenGenerationConfig = QwenGenerationConfig(),
+    private val sampling: FrameSamplingConfig = VlmDefaults.sampling,
+    private val generation: VlmGenerationConfig = VlmGenerationConfig(),
 ) : VlmEngine {
-    constructor(context: Context, sampling: FrameSamplingConfig = QwenPhase2Defaults.sampling,
-        generation: QwenGenerationConfig = QwenGenerationConfig()) : this(
-        NativeQwen3VlBridge(VlmModelManager(context.applicationContext)), VlmFrameSampler(), sampling, generation)
+    constructor(context: Context, sampling: FrameSamplingConfig = VlmDefaults.sampling,
+        generation: VlmGenerationConfig = VlmGenerationConfig()) : this(
+        NativeVlmBridge(VlmModelManager(context.applicationContext)), VlmFrameSampler(), sampling, generation)
 
     private val lifecycle = Mutex()
     private var loaded = false
@@ -78,7 +78,9 @@ class Qwen3VlEngine internal constructor(
                             put("backend", "CPU"); put("projectorWarmup", false)
                             put("loadAndVerificationMs", loadDurationMs)
                             put("inferenceIncludes", "RGB ingestion, tokenization, vision encoding, prefill, generation")
-                            put("chatFormatter", "llama_chat_apply_template/chatml")
+                            put("chatFormatter", "llama_chat_apply_template/smolvlm")
+                            put("modelRepository", VlmModelManager.GGUF_REPOSITORY)
+                            put("modelRevision", VlmModelManager.MODEL_REVISION)
                             put("imagePlacement", "chronological image markers before user text; no temporal merge")
                             put("systemPrompt", request.prompt.systemPrompt); put("userPrompt", request.prompt.userPrompt)
                             put("formattedPromptSha256", sha256(result.formattedPrompt))
@@ -100,26 +102,26 @@ class Qwen3VlEngine internal constructor(
         else error("Native unload failed: $result")
     } }
 
-    override fun modelInfo() = VlmModelInfo("Qwen/Qwen3-VL-4B-Instruct-GGUF", "Q4_K_M",
+    override fun modelInfo() = VlmModelInfo(VlmModelManager.MODEL_ID, VlmModelManager.QUANTIZATION,
         VlmModelManager.OFFICIAL_FILES[0].sha256, VlmModelManager.OFFICIAL_FILES[1].sha256,
-        "llama.cpp/libmtmd", NativeQwen3VlBridge.RUNTIME_COMMIT)
+        "llama.cpp/libmtmd", NativeVlmBridge.RUNTIME_COMMIT)
 
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it.toInt() and 255) }
 }
 
-enum class VlmRuntimeMode { SIMULATED, QWEN_ENGINEERING, QWEN_PARTICIPANT }
+enum class VlmRuntimeMode { SIMULATED, SMOLVLM2_ENGINEERING, SMOLVLM2_PARTICIPANT }
 
 object VlmEngineFactory {
     /** Simulation remains available for isolated workflow checks; participant review selects real mode. */
     fun create(context: Context, mode: VlmRuntimeMode = VlmRuntimeMode.SIMULATED,
-        sampling: FrameSamplingConfig = QwenPhase2Defaults.sampling,
-        generation: QwenGenerationConfig = QwenGenerationConfig()): VlmEngine = when (mode) {
+        sampling: FrameSamplingConfig = VlmDefaults.sampling,
+        generation: VlmGenerationConfig = VlmGenerationConfig()): VlmEngine = when (mode) {
         VlmRuntimeMode.SIMULATED -> FakeVlmEngine(delayMs = 3000)
-        VlmRuntimeMode.QWEN_PARTICIPANT -> Qwen3VlEngine(context, sampling, generation)
-        VlmRuntimeMode.QWEN_ENGINEERING -> {
+        VlmRuntimeMode.SMOLVLM2_PARTICIPANT -> SmolVlm2Engine(context, sampling, generation)
+        VlmRuntimeMode.SMOLVLM2_ENGINEERING -> {
             check(BuildConfig.DEBUG) { "Real VLM engineering mode requires a debug build" }
-            Qwen3VlEngine(context, sampling, generation)
+            SmolVlm2Engine(context, sampling, generation)
         }
     }
 }

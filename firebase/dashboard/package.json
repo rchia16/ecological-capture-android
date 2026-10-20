@@ -1,0 +1,9 @@
+{
+  "name":"ecocapture-catalogue",
+  "version":"1.0.0",
+  "private":true,
+  "type":"module",
+  "scripts":{"build":"node build.mjs","test":"node --test test/*.test.mjs"},
+  "dependencies":{"firebase":"12.4.0"},
+  "devDependencies":{"esbuild":"0.25.11","@firebase/rules-unit-testing":"5.0.0","firebase-tools":"14.22.0"}
+}

@@ -46,7 +46,7 @@ struct UtfChars {
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeLoadModel(
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeLoadModel(
     JNIEnv * env, jobject, jstring language_path, jstring projector_path) {
     std::lock_guard<std::mutex> lock(lifecycle);
     if (loaded.load()) return ALREADY_LOADED;
@@ -98,25 +98,25 @@ Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeLoadModel(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeUnload(
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeUnload(
     JNIEnv *, jobject) {
     std::lock_guard<std::mutex> lock(lifecycle);
     try { cleanup(); return OK; } catch (...) { return NATIVE_FAILED; }
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeCancel(
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeCancel(
     JNIEnv *, jobject) { cancelled.store(true); }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeGetRuntimeInfo(
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeGetRuntimeInfo(
     JNIEnv * env, jobject) {
     // No paths, model output or participant data are exposed here.
     return env->NewStringUTF("llama.cpp/libmtmd|" ECOCAPTURE_RUNTIME_COMMIT "|arm64-v8a|CPU|8192|4");
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeBeginGeneration(JNIEnv *, jobject) {
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeBeginGeneration(JNIEnv *, jobject) {
     std::lock_guard<std::mutex> lock(lifecycle);
     if (!loaded.load()) return 8;
     cancelled.store(false);
@@ -126,7 +126,7 @@ Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeBeginGenera
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeAddFrame(JNIEnv * env, jobject, jobject bitmap) {
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeAddFrame(JNIEnv * env, jobject, jobject bitmap) {
     std::lock_guard<std::mutex> lock(lifecycle);
     if (!loaded.load()) return 8;
     if (cancelled.load()) return CANCELLED;
@@ -187,7 +187,7 @@ jobjectArray result(JNIEnv * env, int code, const std::string & output = "", con
 }
 
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeGenerate(
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeGenerate(
     JNIEnv * env, jobject, jbyteArray system_bytes, jbyteArray user_bytes, jint max_tokens) {
     std::lock_guard<std::mutex> lock(lifecycle);
     if (!loaded.load()) return result(env, 8);
@@ -204,10 +204,12 @@ Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeGenerate(
         const char * model_template = llama_model_chat_template(model.get(), nullptr);
         if (!model_template || std::string(model_template).find("<|im_start|>") == std::string::npos) return result(env, 9);
         const llama_chat_message messages[] = {{"system", system.c_str()}, {"user", content.c_str()}};
-        int length = llama_chat_apply_template("chatml", messages, 2, true, nullptr, 0);
+        // SmolVLM uses <|im_start|> as BOS but is not ChatML. Detect the
+        // verified model's template, including its end_of_utterance delimiter.
+        int length = llama_chat_apply_template(model_template, messages, 2, true, nullptr, 0);
         if (length <= 0) return result(env, 11);
         std::string prompt(length, '\0');
-        if (llama_chat_apply_template("chatml", messages, 2, true, prompt.data(), length) != length) return result(env, 11);
+        if (llama_chat_apply_template(model_template, messages, 2, true, prompt.data(), length) != length) return result(env, 11);
         std::vector<const mtmd_bitmap *> pointers;
         for (const auto & image : images) pointers.push_back(image.get());
         std::unique_ptr<mtmd_input_chunks, decltype(&mtmd_input_chunks_free)> chunks(mtmd_input_chunks_init(), mtmd_input_chunks_free);
@@ -288,7 +290,7 @@ Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeGenerate(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_rchia_ecocapture_phase0_vlm_native_NativeQwenBindings_nativeEndGeneration(JNIEnv *, jobject) {
+Java_com_rchia_ecocapture_phase0_vlm_native_NativeVlmBindings_nativeEndGeneration(JNIEnv *, jobject) {
     std::lock_guard<std::mutex> lock(lifecycle);
     images.clear();
     if (context) llama_memory_clear(llama_get_memory(context.get()), true);

@@ -1,0 +1,21 @@
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+
+%files
+    server/ecocapture_firebase /opt/ecocapture/server/ecocapture_firebase
+    server/ecocapture_gateway /opt/ecocapture/server/ecocapture_gateway
+    server/deployment/firebase/requirements.txt /opt/ecocapture/requirements.txt
+
+%post
+    python -m pip install --no-cache-dir -r /opt/ecocapture/requirements.txt
+    python -m pip check
+    mkdir -p /receiver-config /receiver-data /receiver-secrets /receiver-bin
+    chmod -R a-w /opt/ecocapture
+
+%environment
+    export PYTHONPATH=/opt/ecocapture/server
+    export PYTHONDONTWRITEBYTECODE=1
+    export GOOGLE_APPLICATION_CREDENTIALS=/receiver-secrets/google-adc.json
+
+%runscript
+    exec python -B -m ecocapture_firebase.cli --config /receiver-config/receiver.json "$@"

@@ -11,8 +11,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwen3VlBridge
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwenBindings
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBridge
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBindings
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -22,7 +22,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Opt-in heavy engineering test; ordinary Room runs must not unexpectedly load a 3 GB model. */
+/** Opt-in model lifecycle test; ordinary Room runs must not unexpectedly load model weights. */
 @RunWith(AndroidJUnit4::class)
 class Checkpoint4NativeTest {
     @Test fun verifyLoadUnloadTwiceAndPlayHevcAfterwards() = runBlocking {
@@ -30,7 +30,7 @@ class Checkpoint4NativeTest {
         assumeTrue(InstrumentationRegistry.getArguments().getString("nativeCheckpoint4") == "true")
         val context = instrumentation.targetContext
         val manager = VlmModelManager(context)
-        val bridge = NativeQwen3VlBridge(manager)
+        val bridge = NativeVlmBridge(manager)
         val report = StringBuilder()
         fun measure(label: String) {
             val status = File("/proc/self/status").readLines().filter {
@@ -49,12 +49,12 @@ class Checkpoint4NativeTest {
             val inspection = manager.inspect()
             assertEquals(VlmModelStatus.READY, inspection.status)
             report.appendLine("verificationMs=${SystemClock.elapsedRealtime() - started}")
-            assertEquals(NativeQwen3VlBridge.EXPECTED_RUNTIME, bridge.runtimeInfo())
+            assertEquals(NativeVlmBridge.EXPECTED_RUNTIME, bridge.runtimeInfo())
             // Known missing paths exercise native partial-load cleanup without corrupting real models.
-            assertEquals(1, NativeQwenBindings.nativeLoadModel("/missing/language.gguf", "/missing/projector.gguf"))
-            assertEquals(2, NativeQwenBindings.nativeLoadModel(
+            assertEquals(1, NativeVlmBindings.nativeLoadModel("/missing/language.gguf", "/missing/projector.gguf"))
+            assertEquals(2, NativeVlmBindings.nativeLoadModel(
                 requireNotNull(inspection.bundle).language.file.absolutePath, "/missing/projector.gguf"))
-            assertEquals(0, NativeQwenBindings.nativeUnload())
+            assertEquals(0, NativeVlmBindings.nativeUnload())
             measure("after-partial-failure-cleanup")
             repeat(2) { index ->
                 val loadStart = SystemClock.elapsedRealtime()

@@ -38,6 +38,8 @@ replay_pid*
 tools/phase3-protocol/artifacts/
 # FileSender account configuration can contain API credentials; never track it.
 filesender.py.ini
+tools/filesender.py.ini
+
 
 # Local gateway dependencies, disposable state/certificates and test artifacts.
 server/.venv/
@@ -46,3 +48,22 @@ server/.test-artifacts/
 server/.wheelhouse/
 server/.packages/
 *.sif
+
+# Firebase local deployment/configuration and generated crypto bridge.
+local.properties
+firebase/android.local.properties
+firebase/functions/.env*
+!firebase/functions/.env.example
+firebase/functions/.venv/
+firebase/functions/venv/
+firebase/.tools/
+*un~
+firebase/.firebase/
+firebase/.firebaserc
+firebase/dashboard/config.local.json
+firebase/dashboard/dist/
+**/node_modules/
+app/libs/*.aar
+crypto/android-age/.tools/
+__pycache__/
+*.pyc

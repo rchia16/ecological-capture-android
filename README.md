@@ -2,7 +2,11 @@
 
 Android-only Phase 0 prototype for participant-initiated, short egocentric recordings from Ray-Ban Meta / supported Meta AI glasses.
 
+The current local visual model is **SmolVLM2-500M-Video-Instruct (Q8_0)**, using three chronological frames. See [model setup and validation](tools/smolvlm2/README.md). Earlier phase reports retain the original Qwen experiments and measurements.
+
 ## Phase 0 scope
+
+The opt-in [direct GB10 transfer implementation](server/deployment/direct/README.md) sends encrypted approved snapshots through the existing Tailscale HTTPS address. A separate private researcher catalogue supports shared tags, notes, review status, CSV and verified package downloads. Normal builds retain local transfer simulation. The earlier [Firebase implementation](firebase/README.md) is inactive; no Firebase backend was deployed. Existing capture and historical phase documentation follow below.
 
 This build proves the highest-risk path only:
 

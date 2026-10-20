@@ -1,0 +1,7 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All metadata is served by the authenticated control plane.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -16,8 +16,28 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.EcologicalCapturePhase0">
 
+        <activity android:name="com.rchia.ecocapture.phase0.transfer.firebase.FirebaseEnrolmentActivity"
+            android:enabled="${firebaseTransferEnabled}" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ecocapture" android:host="enrol" />
+            </intent-filter>
+        </activity>
+
         <service android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync|mediaProcessing" tools:node="merge" />
+
+        <activity android:name="com.rchia.ecocapture.phase0.transfer.gateway.GatewayEnrolmentActivity"
+            android:enabled="${gatewayTransferEnabled}" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ecocapture" android:host="gb10-enrol" />
+            </intent-filter>
+        </activity>
 
         <meta-data android:name="com.meta.wearable.mwdat.APPLICATION_ID" android:value="1855646829126055" />
         <meta-data android:name="com.meta.wearable.mwdat.CLIENT_TOKEN" android:value="AR|1855646829126055|7390a26f40712b9f9e8678a0c2fb296c" />

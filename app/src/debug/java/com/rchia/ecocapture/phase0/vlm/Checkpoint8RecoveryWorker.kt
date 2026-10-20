@@ -5,7 +5,7 @@ import androidx.room.Room
 import androidx.work.WorkerParameters
 import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
 import com.rchia.ecocapture.phase0.vlm.background.AiPreparationWorker
-import com.rchia.ecocapture.phase0.vlm.native.NativeQwen3VlBridge
+import com.rchia.ecocapture.phase0.vlm.native.NativeVlmBridge
 import java.io.File
 import java.util.UUID
 import org.json.JSONObject
@@ -31,7 +31,7 @@ class Checkpoint8RecoveryWorker(context: Context, parameters: WorkerParameters) 
                 VlmModelManager(folder, listOf(VlmModelFileSpec("language.gguf", 1, "0".repeat(64)),
                     VlmModelFileSpec("projector.gguf", 1, "0".repeat(64))))
             }
-            val bridge = NativeQwen3VlBridge(manager)
+            val bridge = NativeVlmBridge(manager)
             return object : VlmEngine {
                 override suspend fun load() = bridge.load()
                 override suspend fun generate(request: VlmRequest): VlmResult = error("Unverified files must never reach inference")
@@ -39,10 +39,10 @@ class Checkpoint8RecoveryWorker(context: Context, parameters: WorkerParameters) 
                 override fun modelInfo() = FakeVlmEngine().modelInfo()
             }
         }
-        if (scenario == "frames") return Qwen3VlEngine(object : QwenRuntime {
+        if (scenario == "frames") return SmolVlm2Engine(object : VlmRuntime {
             override suspend fun load() = VlmLoadResult.Ready
             override suspend fun unload() = VlmLoadResult.Ready
-            override suspend fun generate(samples: SampledFrames, prompt: VlmPromptDefinition, config: QwenGenerationConfig): NativeGenerationResult =
+            override suspend fun generate(samples: SampledFrames, prompt: VlmPromptDefinition, config: VlmGenerationConfig): NativeGenerationResult =
                 error("Invalid disposable MP4 must fail during actual frame extraction")
         })
         val fake = FakeVlmEngine(delayMs = inputData.getLong("delayMs", 1000),

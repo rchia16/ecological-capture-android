@@ -12,13 +12,14 @@ from .errors import GatewayError, require
 
 class SecurityBoundary:
     """Outer ASGI boundary: never trust forwarded headers directly or log request/exception data."""
-    def __init__(self, app, store):
+    def __init__(self, app, store, anonymous_paths=None):
         self.app = app
         self.store = store
         self.config = store.config
         self.lock = threading.Lock()
         self.inflight = 0
         self.peers = OrderedDict()
+        self.anonymous_paths = frozenset(anonymous_paths if anonymous_paths is not None else {("GET", "/v1/health")})
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -68,7 +69,7 @@ class SecurityBoundary:
                 require(length.isdecimal() and len(length) <= 12)
                 require(int(length) <= limit, 413, "BODY_LIMIT")
             state = scope.setdefault("state", {})
-            if not (scope["path"] == "/v1/health" and scope["method"] == "GET"):
+            if (scope["method"], scope["path"]) not in self.anonymous_paths:
                 owner = await run_in_threadpool(self.store.authenticate, header(b"authorization"))
                 await run_in_threadpool(self.store.rate, owner)
                 state["owner"] = owner

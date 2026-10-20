@@ -19,4 +19,8 @@ data class TransferJobEntity(
     val sourceVersionSha256: String,
     val previousSnapshotId: String?,
     val appVersion: String,
+    val encryptedArtifactPath: String? = null,
+    val ciphertextSha256: String? = null,
+    val encryptionKeyVersions: String? = null,
+    val remoteReceiptJson: String? = null,
 )
