@@ -13,15 +13,15 @@ val localProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.rchia.ecocapture.phase0"
+    namespace = "com.rchia.ecocapture"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.rchia.ecocapture.phase0"
+        applicationId = "com.rchia.ecocapture"
         minSdk = 31
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-phase0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

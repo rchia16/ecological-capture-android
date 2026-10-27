@@ -12,7 +12,7 @@ This build proves the highest-risk path only:
 
 ```text
 Ray-Ban Meta
-  -> Meta Wearables DAT 0.9.0
+  -> Meta Wearables DAT 1.0.1
   -> compressed HEVC camera stream
   -> direct MediaMuxer MP4 passthrough
   -> app-private local storage
@@ -53,7 +53,7 @@ Those belong to later phases.
 
 `rchia16/meta-glasses-sonification` is useful for its registration, permissions, frame handling and accessibility/audio patterns, but its CameraAccess code still shows the older `Wearables.startStreamSession(...)` flow.
 
-This prototype targets **Meta Wearables DAT 0.9.0**, where camera access is explicitly:
+The camera lifecycle introduced in **Meta Wearables DAT 0.9.0** is still used with the current **1.0.1** dependency:
 
 ```text
 Wearables.createSession(...)
@@ -70,9 +70,8 @@ Wearables.createSession(...)
 - Android Studio with Android SDK 36
 - Java 17
 - Android 12 / API 31+ for this Phase 0 baseline
-- Meta Wearables DAT 0.9-compatible Meta AI / glasses firmware combination
+- Meta AI and glasses software compatible with Meta Wearables DAT 1.0.1
 - Ray-Ban Meta or another DAT-supported Meta AI glasses device
-- GitHub personal access token (classic) with `read:packages`
 - Meta Wearables Developer Mode **or** application credentials from Wearables Developer Center
 
 ## 1. Configure `local.properties`
@@ -86,21 +85,16 @@ cp local.properties.example local.properties
 Then set:
 
 ```properties
-github_token=YOUR_GITHUB_CLASSIC_PAT_WITH_READ_PACKAGES
-
-# Leave blank only when your DAT Developer Mode setup permits it.
-mwdat_application_id=YOUR_WEARABLES_APP_ID
-mwdat_client_token=YOUR_WEARABLES_CLIENT_TOKEN
+# For Meta AI Developer Mode, omit both keys or set both to 0.
+# For release-channel testing, set both real Wearables Developer Center values:
+# mwdat_application_id=YOUR_WEARABLES_APP_ID
+# mwdat_client_token=YOUR_WEARABLES_CLIENT_TOKEN
 
 # Android Studio normally adds this:
 sdk.dir=/path/to/Android/Sdk
 ```
 
-You can also provide the GitHub token as:
-
-```bash
-export GITHUB_TOKEN=...
-```
+DAT 1.0.1 resolves from Maven Central; no GitHub package token is needed. Developer Mode requires the glasses' Developer Mode DAT app to be installed from Meta AI. With real credentials, publish a DAT 1.0-compatible integration version to a release channel and enrol the test account so Meta AI can install this app's glasses component. A phone APK update alone does not update the glasses component. If a session reports a glasses app update is required, use the app's **UPDATE GLASSES APP** action. Keep the glasses connected while Meta AI installs the update.
 
 ## 2. Gradle wrapper
 

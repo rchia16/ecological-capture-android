@@ -34,6 +34,7 @@ import com.rchia.ecocapture.phase0.Phase0ViewModel
 fun Phase0Screen(
     viewModel: Phase0ViewModel,
     onRegister: () -> Unit,
+    onUpdateGlassesApp: () -> Unit,
     onStartCamera: () -> Unit,
     onReviewRecordings: () -> Unit,
     onApprovedRecordings: () -> Unit,
@@ -96,6 +97,15 @@ fun Phase0Screen(
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(message, fontSize = 18.sp)
+                            if (state.glassesAppUpdateRequired) {
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = onUpdateGlassesApp,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                                ) {
+                                    Text("UPDATE GLASSES APP", fontSize = 18.sp)
+                                }
+                            }
                             Spacer(Modifier.height(12.dp))
                             OutlinedButton(
                                 onClick = viewModel::clearError,

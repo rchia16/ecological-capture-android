@@ -12,9 +12,9 @@ import kotlinx.coroutines.withContext
 class AiSuggestionPreferences(context: Context, storeName: String = "ai_suggestion_preferences") {
     private val preferences = context.applicationContext.getSharedPreferences(storeName, Context.MODE_PRIVATE)
     private val writes = Mutex()
-    private val mutableEnabled = MutableStateFlow(preferences.getBoolean("automatic_preparation", false))
+    private val mutableEnabled = MutableStateFlow(preferences.getBoolean("automatic_preparation", true))
     val enabled = mutableEnabled.asStateFlow()
-    private val mutableBackground = MutableStateFlow(preferences.getBoolean("background_preparation", false))
+    private val mutableBackground = MutableStateFlow(preferences.getBoolean("background_preparation", true))
     val backgroundEnabled = mutableBackground.asStateFlow()
     private val mutableChargingOnly = MutableStateFlow(preferences.getBoolean("charging_only", true))
     val chargingOnly = mutableChargingOnly.asStateFlow()

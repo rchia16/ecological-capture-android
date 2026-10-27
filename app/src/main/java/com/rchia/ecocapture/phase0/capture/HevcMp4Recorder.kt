@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.os.SystemClock
 import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
@@ -29,6 +30,9 @@ sealed interface RecordingResult {
         val height: Int,
         val samples: Int,
         val createdAtEpochMs: Long = 0L,
+        val startedElapsedRealtimeUs: Long = 0L,
+        val audioIncluded: Boolean = false,
+        val startedStreamPresentationTimeUs: Long? = null,
     ) : RecordingResult
 
     data object NoVideo : RecordingResult
@@ -36,7 +40,7 @@ sealed interface RecordingResult {
 }
 
 /**
- * Video-only HEVC -> MP4 passthrough recorder for Meta DAT compressed frames.
+ * HEVC -> MP4 passthrough recorder for Meta DAT compressed frames.
  *
  * Frames are never re-encoded. The recorder caches VPS/SPS/PPS while the glasses stream is active,
  * opens an MP4 track on a keyframe (or a short fallback), writes to a .partial file, then atomically
@@ -71,6 +75,7 @@ class HevcMp4Recorder(context: Context, frameRate: Int = 15) {
     private var framesBeforeStart = 0
     private var sampleCount = 0
     private var recordBeganWallTimeMs = 0L
+    private var recordBeganElapsedRealtimeUs = 0L
 
     /** Always call this for compressed stream frames, even when not recording. */
     fun observeStreamFrame(data: ByteArray) {
@@ -147,6 +152,7 @@ class HevcMp4Recorder(context: Context, frameRate: Int = 15) {
                 videoStarted = true
                 firstInputPtsUs = presentationTimeUs
                 recordBeganWallTimeMs = System.currentTimeMillis()
+                recordBeganElapsedRealtimeUs = SystemClock.elapsedRealtimeNanos() / 1_000L
                 justStarted = true
             } catch (t: Throwable) {
                 muxerFailed = true
@@ -258,6 +264,8 @@ class HevcMp4Recorder(context: Context, frameRate: Int = 15) {
                     height = height,
                     samples = sampleCount,
                     createdAtEpochMs = recordBeganWallTimeMs,
+                    startedElapsedRealtimeUs = recordBeganElapsedRealtimeUs,
+                    startedStreamPresentationTimeUs = firstInputPtsUs,
                 )
             }
         }
@@ -325,6 +333,7 @@ class HevcMp4Recorder(context: Context, frameRate: Int = 15) {
         framesBeforeStart = 0
         sampleCount = 0
         recordBeganWallTimeMs = 0L
+        recordBeganElapsedRealtimeUs = 0L
         if (!keepParameterSets) parameterSets.clear()
     }
 }

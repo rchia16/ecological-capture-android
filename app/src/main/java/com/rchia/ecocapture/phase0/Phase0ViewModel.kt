@@ -10,6 +10,8 @@ import com.meta.wearable.dat.camera.Camera
 import com.meta.wearable.dat.camera.Stream
 import com.meta.wearable.dat.camera.addCamera
 import com.meta.wearable.dat.camera.types.StreamConfiguration
+import com.meta.wearable.dat.camera.types.AudioCodec
+import com.meta.wearable.dat.camera.types.AudioSampleRate
 import com.meta.wearable.dat.camera.types.StreamState
 import com.meta.wearable.dat.camera.types.VideoQuality
 import com.meta.wearable.dat.core.Wearables
@@ -17,11 +19,15 @@ import com.meta.wearable.dat.core.selectors.AutoDeviceSelector
 import com.meta.wearable.dat.core.selectors.DeviceSelector
 import com.meta.wearable.dat.core.session.DeviceSession
 import com.meta.wearable.dat.core.session.DeviceSessionState
+import com.meta.wearable.dat.core.types.DeviceSessionError
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.meta.wearable.dat.core.types.RegistrationState
 import com.rchia.ecocapture.phase0.capture.FrameWriteResult
 import com.rchia.ecocapture.phase0.capture.HevcMp4Recorder
+import com.rchia.ecocapture.phase0.capture.AudioVideoMuxer
+import com.rchia.ecocapture.phase0.capture.DatAudioRecorder
+import com.rchia.ecocapture.phase0.capture.RecordedDatAudio
 import com.rchia.ecocapture.phase0.capture.RecordingResult
 import com.rchia.ecocapture.phase0.data.ClipRepository
 import com.rchia.ecocapture.phase0.data.addCompletedRecording
@@ -37,6 +43,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +52,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "EcologicalCapturePhase0"
 private const val TARGET_FPS = 7
@@ -67,6 +76,7 @@ data class Phase0UiState(
     val recordingElapsedSeconds: Long = 0L,
     val status: String = "Starting Phase 0 app...",
     val error: String? = null,
+    val glassesAppUpdateRequired: Boolean = false,
     val lastSavedFile: String? = null,
     val lastSavedBytes: Long = 0L,
 ) {
@@ -81,6 +91,9 @@ data class Phase0UiState(
 }
 
 class Phase0ViewModel(application: Application) : AndroidViewModel(application) {
+    private val microphone = DatAudioRecorder(application)
+    private var glassesMicPermissionGranted = false
+    private var microphoneActiveForClip = false
     private var recordingSuburb: Deferred<String?>? = null
     private var recordingZone: String? = null
     private val feedback = FeedbackController(application)
@@ -119,6 +132,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     private var streamStateJob: Job? = null
     private var streamErrorJob: Job? = null
     private var frameJob: Job? = null
+    private var audioFrameJob: Job? = null
     private var recordingTimerJob: Job? = null
     private var recordingPreparationJob: Job? = null
 
@@ -177,7 +191,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun clearError() {
-        _uiState.update { it.copy(error = null) }
+        _uiState.update { it.copy(error = null, glassesAppUpdateRequired = false) }
     }
 
     fun onClipDeferred() = feedback.clipDeferred()
@@ -192,6 +206,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
             onFatalError("Meta Wearables DAT is not initialized yet.")
             return
         }
+        if (Wearables.registrationState.value == RegistrationState.REGISTERED) return
         Wearables.startRegistration(activity)
     }
 
@@ -220,6 +235,19 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                         requestPermission(Permission.CAMERA)
                     }
                     if (finalStatus == PermissionStatus.Granted) {
+                        val microphoneAlreadyGranted = Wearables.checkPermissionStatus(Permission.MICROPHONE)
+                            .fold(
+                                onSuccess = { it == PermissionStatus.Granted },
+                                onFailure = { error, _ ->
+                                    Log.e(TAG, "DAT microphone permission check failed: ${error.description}")
+                                    false
+                                },
+                            )
+                        glassesMicPermissionGranted = microphoneAlreadyGranted ||
+                            requestPermission(Permission.MICROPHONE) == PermissionStatus.Granted
+                        if (!glassesMicPermissionGranted) _uiState.update {
+                            it.copy(error = "Glasses microphone permission was not granted in Meta AI. Recordings will have video only.")
+                        }
                         ensureSession()
                     } else {
                         onFatalError("Glasses camera permission was denied.")
@@ -240,7 +268,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
 
-        _uiState.update { it.copy(status = "Connecting to glasses session...") }
+        _uiState.update { it.copy(status = "Connecting to glasses session...", glassesAppUpdateRequired = false) }
         Wearables.createSession(deviceSelector)
             .onSuccess { created ->
                 session = created
@@ -249,6 +277,9 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                 created.start()
             }
             .onFailure { error, _ ->
+                if (error == DeviceSessionError.DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED) {
+                    _uiState.update { it.copy(glassesAppUpdateRequired = true) }
+                }
                 onFatalError("Could not create glasses session: ${error.description}")
             }
     }
@@ -283,6 +314,9 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
 
         sessionErrorJob = viewModelScope.launch {
             created.errors.collect { error ->
+                if (error == DeviceSessionError.DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED) {
+                    _uiState.update { it.copy(glassesAppUpdateRequired = true) }
+                }
                 onFatalError("Glasses session error: ${error.description}")
             }
         }
@@ -305,6 +339,8 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         currentSession
             .addCamera(
                 StreamConfiguration(
+                    audioCodec = if (glassesMicPermissionGranted) AudioCodec.PCM(
+                        AudioSampleRate.RATE_16000, DatAudioRecorder.CHANNEL_COUNT) else null,
                     videoQuality = VideoQuality.HIGH,
                     frameRate = TARGET_FPS,
                     compressVideo = true,
@@ -332,6 +368,13 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         streamStateJob?.cancel()
         streamErrorJob?.cancel()
         frameJob?.cancel()
+        audioFrameJob?.cancel()
+        // Subscribe synchronously before start(); frames are retained only while a clip is armed.
+        audioFrameJob = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.UNDISPATCHED) {
+            activeStream.audioStream.collect { frame ->
+                microphone.offer(frame.buffer, frame.presentationTimeUs)
+            }
+        }
 
         streamStateJob = viewModelScope.launch {
             // DAT replays the stream's current STOPPED state as soon as we subscribe. Do not
@@ -439,15 +482,25 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                 if (_uiState.value.isCameraReady && !_uiState.value.isRecordingRequested && !_uiState.value.isFinalizingRecording) armRecording()
             } finally {
                 _uiState.update { it.copy(isPreparingRecording = false) }
-                if (!_uiState.value.isRecordingRequested && !_uiState.value.isFinalizingRecording) VlmExecutionGate.releaseCapture()
+                if (!_uiState.value.isRecordingRequested && !_uiState.value.isFinalizingRecording) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        microphone.cancel()
+                    }
+                    microphoneActiveForClip = false
+                    VlmExecutionGate.releaseCapture()
+                }
             }
         }
     }
 
-    private fun armRecording() {
+    private suspend fun armRecording() {
         recordingSuburb?.cancel()
         recordingSuburb = null
         recordingZone = null
+        val microphoneStarted = glassesMicPermissionGranted && withContext(Dispatchers.IO) {
+            microphone.arm()
+        }
+        microphoneActiveForClip = microphoneStarted
         recorder.arm()
             .onSuccess {
                 _uiState.update {
@@ -457,11 +510,14 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                         isFinalizingRecording = false,
                         recordingElapsedSeconds = 0,
                         status = "Preparing recording. Waiting for a decodable video frame...",
-                        error = null,
+                        error = if (microphoneStarted) null else
+                            "Glasses microphone unavailable. This clip will have video only.",
                     )
                 }
             }
             .onFailure { error ->
+                microphoneActiveForClip = false
+                microphone.cancel()
                 onFatalError("Could not prepare local MP4: ${error.message}")
             }
     }
@@ -479,7 +535,8 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                 recordingElapsedSeconds = 0,
             )
         }
-        feedback.recordingStarted()
+        // Speech from the phone or glasses would be captured in the clip.
+        feedback.recordingStarted(withSpeech = !microphoneActiveForClip)
         recordingTimerJob?.cancel()
         recordingTimerJob = viewModelScope.launch {
             while (isActive && _uiState.value.isRecordingConfirmed) {
@@ -515,8 +572,18 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            try { when (val result = recorder.stop()) {
-                is RecordingResult.Completed -> onRecordingSaved(result, reason)
+            var audio: RecordedDatAudio? = null
+            try {
+                audio = microphone.stop()
+                microphoneActiveForClip = false
+                when (val result = recorder.stop()) {
+                is RecordingResult.Completed -> {
+                    val merged = audio != null && result.startedStreamPresentationTimeUs != null &&
+                        AudioVideoMuxer.merge(result.videoFile, audio.file,
+                        audio.firstPresentationTimeUs - result.startedStreamPresentationTimeUs,
+                        result.durationMs * 1_000L)
+                    onRecordingSaved(result.copy(audioIncluded = merged), reason)
+                }
                 RecordingResult.NoVideo -> {
                     val message = "Recording stopped before a usable video frame was written."
                     _uiState.update {
@@ -540,7 +607,20 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     feedback.attention(message)
                 }
-            } } finally { VlmExecutionGate.releaseCapture() }
+                }
+            } catch (error: Exception) {
+                Log.e(TAG, "Could not finish recording", error)
+                _uiState.update { it.copy(
+                    status = "Recording could not be finalized.",
+                    error = error.message ?: "Could not finish recording.",
+                    isFinalizingRecording = false,
+                ) }
+            } finally {
+                // Temporary microphone data must not remain after a failed or cancelled merge.
+                audio?.file?.delete()
+                microphone.cancel()
+                VlmExecutionGate.releaseCapture()
+            }
         }
     }
 
@@ -557,12 +637,18 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         )
         _uiState.update {
             it.copy(
-                status = "Recording saved locally.",
+                status = if (result.audioIncluded) "Recording saved locally with glasses microphone audio."
+                    else "Recording saved locally without microphone audio.",
                 isFinalizingRecording = false,
                 recordingElapsedSeconds = 0,
                 lastSavedFile = file.absolutePath,
                 lastSavedBytes = file.length(),
-                error = null,
+                error = if (result.audioIncluded) null else
+                    when {
+                        !glassesMicPermissionGranted -> "Glasses microphone permission was not granted in Meta AI. Video saved without audio."
+                        microphone.lastFailure != null -> "Video saved without audio. ${microphone.lastFailure}"
+                        else -> "Video saved, but DAT microphone audio could not be added."
+                    },
             )
         }
         runCatching { clipRepository.addCompletedRecording(result) }
@@ -582,7 +668,8 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                 suburb?.await()?.let { contextDao.setAutomaticSuburb(result.clipId, it, System.currentTimeMillis()) }
             }.onFailure { Log.w(TAG, "Approximate recording suburb unavailable") }
         }
-        feedback.recordingStopped()
+        if (result.audioIncluded) feedback.recordingStopped()
+        else feedback.attention("Recording saved without microphone audio.")
     }
 
     fun stopCamera() {
@@ -590,6 +677,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         if (_uiState.value.isRecordingRequested) {
             finishRecording("Camera stopped")
         }
+        audioFrameJob?.cancel()
         runCatching { camera?.close() }
         runCatching { session?.stop() }
         cleanupCameraReferences()
@@ -604,6 +692,8 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun cleanupCameraReferences() {
+        audioFrameJob?.cancel()
+        audioFrameJob = null
         frameJob?.cancel()
         frameJob = null
         streamStateJob?.cancel()
@@ -617,9 +707,14 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
         fpsWindowStartMs = 0L
         fpsFrames = 0
         recorder.resetStreamCodecState()
+        if (!_uiState.value.isFinalizingRecording) {
+            microphone.cancel()
+        }
     }
 
     override fun onCleared() {
+        audioFrameJob?.cancel()
+        microphone.cancel()
         recordingSuburb?.cancel()
         recordingPreparationJob?.cancel()
         recordingTimerJob?.cancel()

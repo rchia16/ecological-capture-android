@@ -40,11 +40,11 @@ android {
     ndkPath = rootProject.file("tools/vlm-feasibility/artifacts/android-ndk-r28c").absolutePath
 
     defaultConfig {
-        applicationId = "com.rchia.ecocapture.phase0"
+        applicationId = "com.rchia.ecocapture"
         minSdk = 31
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-phase0"
+        versionName = "0.1.0"
         buildConfigField("boolean", "FIREBASE_TRANSFER_ENABLED", firebaseTransfer.toString())
         buildConfigField("boolean", "GATEWAY_TRANSFER_ENABLED", gatewayTransfer.toString())
         buildConfigField("String", "GATEWAY_API_ENDPOINT", "\"$gatewayEndpoint\"")
@@ -65,9 +65,9 @@ android {
         }
 
         manifestPlaceholders["mwdat_application_id"] =
-            localProperties.getProperty("mwdat_application_id", "")
+            localProperties.getProperty("mwdat_application_id", "0")
         manifestPlaceholders["mwdat_client_token"] =
-            localProperties.getProperty("mwdat_client_token", "")
+            localProperties.getProperty("mwdat_client_token", "0")
     }
 
     buildTypes {

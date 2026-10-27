@@ -21,7 +21,7 @@ object RecordingLocation {
     private const val ENABLED = "save_approximate_suburb"
 
     fun enabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        .getBoolean(ENABLED, false)
+        .getBoolean(ENABLED, true)
 
     fun setEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(ENABLED, enabled).apply()

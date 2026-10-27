@@ -263,18 +263,23 @@ class VlmReviewWorkflowTest {
         assertEquals(run.description, editor.state.value.draft?.text)
     }
 
-    @Test fun automaticPreferenceDefaultsOffAndPersistsAcrossRecreation() = runBlocking {
+    @Test fun automaticAndBackgroundPreferencesDefaultOnAndExplicitOffPersists() = runBlocking {
         val preferences = AiSuggestionPreferences(context, preferenceName)
-        assertFalse(preferences.enabled.value)
+        assertTrue(preferences.enabled.value)
+        assertTrue(preferences.backgroundEnabled.value)
+        preferences.setEnabled(false)
+        preferences.setBackgroundEnabled(false)
         withContext(Dispatchers.Main) {
             workflow.prepareAutomatically(media) { preferences.claimFirstPreparation("clip") }
         }
         assertEquals(0, engine.loads)
         assertTrue(database.vlmRunDao().history("clip").isEmpty())
-        preferences.setEnabled(true)
-        assertTrue(AiSuggestionPreferences(context, preferenceName).enabled.value)
-        preferences.setEnabled(false)
         assertFalse(AiSuggestionPreferences(context, preferenceName).enabled.value)
+        assertFalse(AiSuggestionPreferences(context, preferenceName).backgroundEnabled.value)
+        preferences.setEnabled(true)
+        preferences.setBackgroundEnabled(true)
+        assertTrue(AiSuggestionPreferences(context, preferenceName).enabled.value)
+        assertTrue(AiSuggestionPreferences(context, preferenceName).backgroundEnabled.value)
     }
 
     @Test fun automaticPreparationDoesNotExposeTextOrChangeDraftAndDecisions() = runBlocking {

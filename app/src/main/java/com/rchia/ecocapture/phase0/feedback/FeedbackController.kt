@@ -38,9 +38,10 @@ class FeedbackController(context: Context) : Closeable, TextToSpeech.OnInitListe
         longArrayOf(0, 80),
     )
 
-    fun recordingStarted() = announce(
+    fun recordingStarted(withSpeech: Boolean = true) = announce(
         "Recording started.",
         longArrayOf(0, 180),
+        withSpeech,
     )
 
     fun recordingStopped() = announce(
@@ -73,7 +74,7 @@ class FeedbackController(context: Context) : Closeable, TextToSpeech.OnInitListe
         longArrayOf(0, 60),
     )
 
-    private fun announce(message: String, pattern: LongArray) {
+    private fun announce(message: String, pattern: LongArray, withSpeech: Boolean = true) {
         if (vibrator.hasVibrator()) {
             vibrator.vibrate(
                 VibrationEffect.createWaveform(pattern, -1),
@@ -82,7 +83,7 @@ class FeedbackController(context: Context) : Closeable, TextToSpeech.OnInitListe
                     .build(),
             )
         }
-        if (ttsReady) {
+        if (ttsReady && withSpeech) {
             tts.speak(message, TextToSpeech.QUEUE_FLUSH, null, message.hashCode().toString())
         }
     }

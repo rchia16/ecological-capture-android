@@ -9,6 +9,8 @@ function Encode-Fixture([string]$name, [string]$size, [string]$duration) {
 Encode-Fixture normal60 320x180 60
 Encode-Fixture short 320x180 1
 Encode-Fixture portrait 108x192 2
+& $Ffmpeg -hide_banner -loglevel error -y -f lavfi -i 'sine=frequency=440:sample_rate=44100' -t 2 -c:a aac -b:a 64k "$destination/test-tone.m4a"
+if ($LASTEXITCODE -ne 0) { throw 'Failed to create synthetic audio fixture.' }
 & $Ffmpeg -hide_banner -loglevel error -y -display_rotation 90 -i "$destination/short.mp4" -c copy "$destination/rotated.mp4"
 if ($LASTEXITCODE -ne 0) { throw 'Failed to create rotated fixture.' }
 Write-Output "Generated disposable HEVC test assets in $destination"

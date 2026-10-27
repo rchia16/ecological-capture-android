@@ -32,6 +32,7 @@ import com.rchia.ecocapture.phase0.ui.review.ClipReviewViewModel
 import com.rchia.ecocapture.phase0.ui.review.AiSettingsScreen
 import com.rchia.ecocapture.phase0.vlm.background.AiPreparationNotifications
 import com.rchia.ecocapture.phase0.domain.ClipRecord
+import com.rchia.ecocapture.phase0.data.AiSuggestionPreferences
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -63,6 +64,11 @@ class MainActivity : ComponentActivity() {
     private var selectedClip by mutableStateOf<ClipRecord?>(null)
     private val notificationPermissionLauncher = registerForActivityResult(RequestPermission()) {
         clipReviewViewModel.setBackgroundPreparationEnabled(true)
+    }
+    private val defaultBackgroundNotificationLauncher = registerForActivityResult(RequestPermission()) { granted ->
+        if (granted && clipReviewViewModel.automaticPreparationEnabled.value) {
+            clipReviewViewModel.setAutomaticPreparationEnabled(true)
+        }
     }
 
     private fun changeBackgroundPreparation(enabled: Boolean) {
@@ -100,14 +106,28 @@ class MainActivity : ComponentActivity() {
     private val capturePermissionsLauncher = registerForActivityResult(RequestMultiplePermissions()) {
         getSharedPreferences("permission_onboarding", MODE_PRIVATE).edit()
             .putBoolean("capture_permissions_requested_v1", true).apply()
+        requestBackgroundNotificationPermissionOnce()
     }
 
     private fun requestCapturePermissionsOnce() {
         if (firstLaunchPermissionsRequested) return
         val preferences = getSharedPreferences("permission_onboarding", MODE_PRIVATE)
-        if (preferences.getBoolean("capture_permissions_requested_v1", false)) return
+        if (preferences.getBoolean("capture_permissions_requested_v1", false)) {
+            requestBackgroundNotificationPermissionOnce()
+            return
+        }
         firstLaunchPermissionsRequested = true
         capturePermissionsLauncher.launch(FIRST_LAUNCH_PERMISSIONS)
+    }
+
+    private fun requestBackgroundNotificationPermissionOnce() {
+        if (Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED ||
+            !AiSuggestionPreferences(this).backgroundEnabled.value) return
+        val preferences = getSharedPreferences("permission_onboarding", MODE_PRIVATE)
+        if (preferences.getBoolean("background_notification_requested_v1", false)) return
+        preferences.edit().putBoolean("background_notification_requested_v1", true).apply()
+        defaultBackgroundNotificationLauncher.launch(POST_NOTIFICATIONS)
     }
 
     private val permissionMutex = Mutex()
@@ -204,6 +224,12 @@ class MainActivity : ComponentActivity() {
                 Phase0Screen(
                     viewModel = viewModel,
                     onRegister = { viewModel.startRegistration(this) },
+                    onUpdateGlassesApp = {
+                        Wearables.openDATGlassesAppUpdate(this)
+                            .onFailure { error, _ ->
+                                viewModel.onFatalError("Could not open the glasses app update: ${error.description}")
+                            }
+                    },
                     onStartCamera = { viewModel.startCamera(::requestWearablesPermission) },
                     onReviewRecordings = { showingReviewQueue = true },
                     onApprovedRecordings = { showingApprovedRecordings = true },
@@ -234,8 +260,8 @@ class MainActivity : ComponentActivity() {
 
         if (!hasWearablesConfiguration()) {
             viewModel.onFatalError(
-                "Meta Wearables credentials are missing. Set mwdat_application_id and " +
-                    "mwdat_client_token in local.properties, then rebuild the app."
+                "Set both mwdat_application_id and mwdat_client_token in local.properties " +
+                    "for release-channel testing, or set both to 0 for Meta AI Developer Mode."
             )
             return
         }
@@ -261,14 +287,13 @@ class MainActivity : ComponentActivity() {
         val metadata = packageManager
             .getApplicationInfo(packageName, PackageManager.GET_META_DATA)
             .metaData
-        val applicationId = metadata?.getString("com.meta.wearable.mwdat.APPLICATION_ID")
-        val clientToken = metadata?.getString("com.meta.wearable.mwdat.CLIENT_TOKEN")
+        val applicationId = metadata?.get("com.meta.wearable.mwdat.APPLICATION_ID")?.toString()
+        val clientToken = metadata?.get("com.meta.wearable.mwdat.CLIENT_TOKEN")?.toString()
 
         return !applicationId.isNullOrBlank() &&
-            applicationId != "0" &&
             !applicationId.contains("YOUR_", ignoreCase = true) &&
             !clientToken.isNullOrBlank() &&
-            clientToken != "0" &&
-            !clientToken.contains("YOUR_", ignoreCase = true)
+            !clientToken.contains("YOUR_", ignoreCase = true) &&
+            ((applicationId == "0") == (clientToken == "0"))
     }
 }
