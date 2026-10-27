@@ -51,6 +51,9 @@ interface ClipDao {
     @Query("DELETE FROM vlm_runs WHERE clipId = :clipId")
     suspend fun eraseVlmRuns(clipId: String)
 
+    @Query("DELETE FROM clip_contexts WHERE clipId = :clipId")
+    suspend fun eraseContext(clipId: String)
+
     @Query("SELECT * FROM clips WHERE approvalState = 'DELETED'")
     suspend fun deletedClips(): List<ClipEntity>
 
@@ -60,6 +63,7 @@ interface ClipDao {
         check(markDeleted(clipId, updatedAtEpochMs) == 1) { "Could not persist recording deletion" }
         eraseAnnotations(clipId)
         eraseVlmRuns(clipId)
+        eraseContext(clipId)
         cancelDeletedClipJobs(clipId, updatedAtEpochMs)
     }
 

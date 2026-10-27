@@ -145,6 +145,7 @@ class ClipDeletionTest {
         override suspend fun getClip(clipId: String): ClipEntity? = clip.takeIf { it.clipId == clipId }
         override suspend fun eraseAnnotations(clipId: String) = Unit
         override suspend fun eraseVlmRuns(clipId: String) = Unit
+        override suspend fun eraseContext(clipId: String) = Unit
         override suspend fun deletedClips(): List<ClipEntity> = listOf(clip).filter { it.approvalState == "DELETED" }
         override suspend fun markDeleted(clipId: String, updatedAtEpochMs: Long): Int {
             beforeTombstone()

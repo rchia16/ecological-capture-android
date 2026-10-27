@@ -41,7 +41,7 @@ class VlmReviewWorkflowTest {
     }
     private fun open() {
         database = Room.databaseBuilder(context, EcologicalCaptureDatabase::class.java, databaseName)
-            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2, EcologicalCaptureDatabase.MIGRATION_2_3, EcologicalCaptureDatabase.MIGRATION_3_4).build()
+            .addMigrations(EcologicalCaptureDatabase.MIGRATION_1_2, EcologicalCaptureDatabase.MIGRATION_2_3, EcologicalCaptureDatabase.MIGRATION_3_4, EcologicalCaptureDatabase.MIGRATION_4_5).build()
     }
     private suspend fun newWorkflow(fake: VlmEngine = FakeVlmEngine(delayMs = 50)) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -193,7 +193,9 @@ class VlmReviewWorkflowTest {
         assertTrue(workflow.state.value.isSuggestionResolved)
         assertEquals(saved, editor.state.value.annotation)
         withContext(Dispatchers.Main) { workflow.generate(media); workflow.useAsStartingPoint() }
-        assertEquals(0, engine.loads)
+        await { it.phase == VlmReviewPhase.SUCCESS && it.run?.vlmRunId != original.vlmRunId }
+        assertEquals(1, engine.loads)
+        assertEquals("AMENDED", database.vlmRunDao().getRun(original.vlmRunId)?.disposition)
         assertEquals(1, database.annotationDao().history("clip").size)
     }
 

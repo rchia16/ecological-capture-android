@@ -23,15 +23,10 @@ fun AiDescriptionSection(
     canPresent: Boolean,
     onOutputVisible: (String) -> Unit,
 ) {
-    // Once dealt with, the suggestion is represented only by the participant's description.
-    // Rejection retains an existing description, or leaves the normal empty-description state.
-    if (state.isSuggestionResolved && !state.isGenerating) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("AI SUGGESTION", fontSize = 21.sp, modifier = Modifier.semantics { heading() })
+        Text("AI VISUAL REMINDER", fontSize = 21.sp, modifier = Modifier.semantics { heading() })
         if (state.run?.runtimeName == "FakeVlmEngine") {
-            Text("This saved suggestion was a simulation. It did not analyze the recording.", fontSize = 18.sp)
-        } else {
-            Text("Optional visual context from sampled images. Fine details may be unclear.", fontSize = 18.sp)
+            Text("This saved reminder was a simulation. It did not analyze the recording.", fontSize = 18.sp)
         }
         val status = when {
             state.isGenerating -> state.preparationMessage
@@ -39,17 +34,17 @@ fun AiDescriptionSection(
             state.phase == VlmReviewPhase.PREPARING -> "Preparing AI description…"
             state.phase == VlmReviewPhase.RUNNING -> "Generating AI description… This may take some time."
             state.phase == VlmReviewPhase.CANCELLED -> "AI generation cancelled."
-            state.phase == VlmReviewPhase.ERROR -> "AI description unavailable."
-            state.run != null -> "AI description available."
-            else -> "No AI description generated."
+            state.phase == VlmReviewPhase.ERROR -> "Visual reminder unavailable."
+            state.run != null -> null
+            else -> "No visual reminder generated."
         }
-        Text(status, fontSize = 18.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        status?.let { Text(it, fontSize = 18.sp,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         state.error?.let { Text(it, fontSize = 18.sp,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
         if (!state.isGenerating) {
             val run = state.run
             if (run != null) {
-                Text("AI-generated. May be incomplete or incorrect.", fontSize = 18.sp)
                 VisibleAiOutput(run.vlmRunId, run.description, canPresent, onOutputVisible)
             }
         }

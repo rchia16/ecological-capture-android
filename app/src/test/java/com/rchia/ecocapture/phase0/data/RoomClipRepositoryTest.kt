@@ -127,6 +127,7 @@ class RoomClipRepositoryTest {
         override suspend fun markDeleted(clipId: String, updatedAtEpochMs: Long): Int = error("Unused in decision tests")
         override suspend fun eraseAnnotations(clipId: String) = Unit
         override suspend fun eraseVlmRuns(clipId: String) = Unit
+        override suspend fun eraseContext(clipId: String) = Unit
         override suspend fun deletedClips(): List<ClipEntity> = emptyList()
         override suspend fun updateReviewState(clipId: String, reviewState: String, updatedAtEpochMs: Long): Unit = error("Unused in decision tests")
         override suspend fun updateApprovalState(clipId: String, approvalState: String, updatedAtEpochMs: Long): Unit = error("Unused in decision tests")

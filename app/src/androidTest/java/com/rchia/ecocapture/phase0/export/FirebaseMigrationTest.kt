@@ -33,10 +33,10 @@ class FirebaseMigrationTest {
             sql.version = 3
         } finally { initial.close() }
         val migrated = Room.databaseBuilder(context,EcologicalCaptureDatabase::class.java,name)
-            .addMigrations(EcologicalCaptureDatabase.MIGRATION_3_4).build()
+            .addMigrations(EcologicalCaptureDatabase.MIGRATION_3_4, EcologicalCaptureDatabase.MIGRATION_4_5).build()
         try {
             assertEquals(original,migrated.transferJobDao().get(id))
-            assertEquals(4,migrated.openHelper.writableDatabase.version)
+            assertEquals(5,migrated.openHelper.writableDatabase.version)
             assertNull(migrated.transferJobDao().get(id)!!.remoteReceiptJson)
         } finally { migrated.close(); context.deleteDatabase(name) }
     }

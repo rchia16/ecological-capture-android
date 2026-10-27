@@ -1,6 +1,11 @@
 package com.rchia.ecocapture.phase0.ui.review
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,11 +13,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rchia.ecocapture.phase0.data.RecordingLocation
 
 @Composable
 fun AiSettingsScreen(
@@ -24,9 +31,20 @@ fun AiSettingsScreen(
     onAutomaticPreparationChanged: (Boolean) -> Unit,
     onBackgroundPreparationChanged: (Boolean) -> Unit,
     onChargingOnlyChanged: (Boolean) -> Unit,
+    onStudyEnrolment: (() -> Unit)?,
     onBack: () -> Unit,
     automaticPreparationStatus: String? = null,
 ) {
+    val context = LocalContext.current
+    var locationEnabled by remember { mutableStateOf(
+        RecordingLocation.enabled(context) &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+    ) }
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        locationEnabled = granted
+        RecordingLocation.setEnabled(context, granted)
+    }
     val titleFocus = remember { FocusRequester() }
     BackHandler(onBack = onBack)
     LaunchedEffect(Unit) { titleFocus.requestFocus() }
@@ -38,6 +56,14 @@ fun AiSettingsScreen(
                     modifier = Modifier.focusRequester(titleFocus).focusable().semantics { heading() })
                 Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    onStudyEnrolment?.let { enrol ->
+                        Text("Study", fontSize = 24.sp, modifier = Modifier.semantics { heading() })
+                        Text("Enrol this phone in the study to send approved recordings.", fontSize = 18.sp)
+                        Button(onClick = enrol, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                            Text("STUDY ENROLMENT", fontSize = 18.sp)
+                        }
+                        HorizontalDivider()
+                    }
                     Text("AI descriptions", fontSize = 24.sp, modifier = Modifier.semantics { heading() })
                     Text("Changes are saved automatically. AI suggestions are optional. You can always write a description and make recording decisions without them.",
                         fontSize = 18.sp)
@@ -48,6 +74,21 @@ fun AiSettingsScreen(
                     HorizontalDivider()
                     BackgroundPreparationSetting(backgroundPreparationEnabled, chargingOnly, saving,
                         onBackgroundPreparationChanged, onChargingOnlyChanged)
+                    HorizontalDivider()
+                    Text("Approximate recording location", fontSize = 24.sp,
+                        modifier = Modifier.semantics { heading() })
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Save approximate suburb", fontSize = 18.sp)
+                        Switch(checked = locationEnabled, onCheckedChange = { enabled ->
+                            if (!enabled) {
+                                RecordingLocation.setEnabled(context, false)
+                                locationEnabled = false
+                            } else if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                RecordingLocation.setEnabled(context, true)
+                                locationEnabled = true
+                            } else locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        })
+                    }
                 }
                 Button(onClick = onBack, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)) {
                     Text("BACK", fontSize = 20.sp)

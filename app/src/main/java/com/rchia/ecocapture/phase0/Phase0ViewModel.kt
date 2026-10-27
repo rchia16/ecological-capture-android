@@ -27,10 +27,14 @@ import com.rchia.ecocapture.phase0.data.ClipRepository
 import com.rchia.ecocapture.phase0.data.addCompletedRecording
 import com.rchia.ecocapture.phase0.data.LegacyClipReconciler
 import com.rchia.ecocapture.phase0.data.RoomClipRepository
+import com.rchia.ecocapture.phase0.data.RecordingLocation
 import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
 import com.rchia.ecocapture.phase0.feedback.FeedbackController
 import com.rchia.ecocapture.phase0.vlm.VlmExecutionGate
 import java.io.File
+import java.util.TimeZone
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -77,6 +81,8 @@ data class Phase0UiState(
 }
 
 class Phase0ViewModel(application: Application) : AndroidViewModel(application) {
+    private var recordingSuburb: Deferred<String?>? = null
+    private var recordingZone: String? = null
     private val feedback = FeedbackController(application)
     private val recorder = HevcMp4Recorder(application, frameRate = TARGET_FPS)
     private val clipRepository: ClipRepository = RoomClipRepository(
@@ -439,6 +445,9 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun armRecording() {
+        recordingSuburb?.cancel()
+        recordingSuburb = null
+        recordingZone = null
         recorder.arm()
             .onSuccess {
                 _uiState.update {
@@ -459,6 +468,10 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun onRecordingConfirmed() {
         if (_uiState.value.isRecordingConfirmed) return
+        recordingZone = TimeZone.getDefault().id
+        recordingSuburb = viewModelScope.async(Dispatchers.IO) {
+            runCatching { RecordingLocation.suburbAtRecording(getApplication()) }.getOrNull()
+        }
         _uiState.update {
             it.copy(
                 isRecordingConfirmed = true,
@@ -532,6 +545,10 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private suspend fun onRecordingSaved(result: RecordingResult.Completed, reason: String) {
+        val zone = recordingZone ?: TimeZone.getDefault().id
+        val suburb = recordingSuburb
+        recordingZone = null
+        recordingSuburb = null
         val file: File = result.videoFile
         Log.i(
             TAG,
@@ -555,6 +572,16 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
                     state.copy(error = "Recording saved on this phone, but could not be added to the review queue. Restart the app to recover it.")
                 }
             }
+        val contextDao = EcologicalCaptureDatabase.getInstance(getApplication()).clipContextDao()
+        runCatching {
+            contextDao.insertRecordingZone(result.clipId, zone, System.currentTimeMillis())
+            contextDao.fillRecordingZone(result.clipId, zone)
+        }.onFailure { Log.w(TAG, "Recording time zone unavailable") }
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                suburb?.await()?.let { contextDao.setAutomaticSuburb(result.clipId, it, System.currentTimeMillis()) }
+            }.onFailure { Log.w(TAG, "Approximate recording suburb unavailable") }
+        }
         feedback.recordingStopped()
     }
 
@@ -593,6 +620,7 @@ class Phase0ViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     override fun onCleared() {
+        recordingSuburb?.cancel()
         recordingPreparationJob?.cancel()
         recordingTimerJob?.cancel()
         if (_uiState.value.isRecordingRequested) {

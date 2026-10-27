@@ -36,7 +36,6 @@ fun ReviewQueueScreen(
     viewModel: ReviewQueueViewModel,
     onBack: () -> Unit,
     onClipSelected: (ClipRecord) -> Unit,
-    onSettings: () -> Unit,
     automaticPreparationStatus: String? = null,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -45,10 +44,6 @@ fun ReviewQueueScreen(
             Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
                 Text("REVIEW RECORDINGS", fontSize = 28.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() })
-                Button(onClick = onSettings,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                    Text("SETTINGS", fontSize = 20.sp)
-                }
                 automaticPreparationStatus?.let { message ->
                     Text(message, fontSize = 18.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                 }

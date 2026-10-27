@@ -16,13 +16,7 @@ fun BackgroundPreparationSetting(enabled: Boolean, chargingOnly: Boolean, saving
     onEnabledChanged: (Boolean) -> Unit, onChargingChanged: (Boolean) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         PreparationToggle("Allow AI preparation in the background", enabled, !saving, onEnabledChanged)
-        Text("Off by default. When enabled, requested suggestions can continue while you use another app or turn off the screen. " +
-            "A notification provides Cancel and tells you when a suggestion is ready. Recording takes priority. " +
-            "AI text is never accepted or saved as your description automatically.", fontSize = 16.sp)
         PreparationToggle("Prepare only while charging", chargingOnly, !saving && enabled, onChargingChanged)
-        Text("Charging only is on by default. Without it, preparation uses battery and may warm the phone. " +
-            "Changes apply to new requests. Unplugging pauses charging-only work; the attempt restarts later. " +
-            "Android may delay background preparation. This setting applies when background preparation is enabled.", fontSize = 16.sp)
     }
 }
 

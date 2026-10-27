@@ -7,7 +7,6 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import java.io.Closeable
-import java.util.Locale
 
 class FeedbackController(context: Context) : Closeable, TextToSpeech.OnInitListener {
     private val appContext = context.applicationContext
@@ -20,7 +19,10 @@ class FeedbackController(context: Context) : Closeable, TextToSpeech.OnInitListe
     override fun onInit(status: Int) {
         ttsReady = status == TextToSpeech.SUCCESS
         if (ttsReady) {
-            tts.language = Locale.getDefault()
+            val voice = tts.offlineEnglishVoice()
+            ttsReady = voice != null && runCatching { tts.voice = voice }.isSuccess
+        }
+        if (ttsReady) {
             tts.setSpeechRate(0.95f)
             tts.setAudioAttributes(
                 AudioAttributes.Builder()

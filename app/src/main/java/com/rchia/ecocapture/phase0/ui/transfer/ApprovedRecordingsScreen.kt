@@ -31,13 +31,9 @@ fun ApprovedRecordingsScreen(viewModel: TransferViewModel, onBack: () -> Unit,
                 Text("APPROVED RECORDINGS", fontSize = 26.sp, modifier = Modifier.semantics { heading() })
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     item {
-                        Text("Your approved videos remain on this phone. Sending requires a separate action.", fontSize = 18.sp)
-                        Text(if (viewModel.liveSending) "Encrypted uploads wait for Wi-Fi. Uploading and verification on GB10 are separate steps."
-                            else "Local transfer simulation. Nothing leaves this phone.", fontSize = 18.sp)
-                        if (viewModel.liveSending) OutlinedButton(onClick = { viewModel.enrol(context) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                            Text("STUDY ENROLMENT", fontSize = 18.sp)
-                        }
+                        // Text("Your approved videos remain on this phone. Sending requires a separate action.", fontSize = 18.sp)
+                        // Text(if (viewModel.liveSending) "Encrypted uploads wait for Wi-Fi. Uploading and verification on GB10 are separate steps."
+                        //     else "Local transfer simulation. Nothing leaves this phone.", fontSize = 18.sp)
                         if (!viewModel.liveSending && com.rchia.ecocapture.phase0.BuildConfig.DEBUG) OutlinedButton(
                             onClick = { context.startActivity(android.content.Intent().setClassName(context.packageName,
                                 "com.rchia.ecocapture.phase0.transfer.TransferSimulationActivity")) },

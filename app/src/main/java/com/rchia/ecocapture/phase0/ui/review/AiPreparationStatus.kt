@@ -22,7 +22,7 @@ fun AiPreparationStatus(state: VlmReviewState, onCancel: () -> Unit,
         Button(onClick = onCancel, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
             Text("CANCEL AI PREPARATION", fontSize = 18.sp)
         }
-    } else if (state.run != null && !state.isSuggestionResolved) {
+    } else if (state.run != null) {
         Text(readyMessage, fontSize = 18.sp,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     }
@@ -36,6 +36,6 @@ val VlmReviewState.preparationMessage: String get() = when (phase) {
     VlmReviewPhase.CANCELLING -> "Stopping AI preparation and releasing memory. This may take some time."
     VlmReviewPhase.QUEUED -> "AI suggestion queued. One recording is prepared at a time. Android may delay preparation."
     VlmReviewPhase.PREPARING -> "Preparing AI suggestion. This may take some time."
-    else -> "Generating AI description. This may take about 10 to 13 minutes. " +
+    else -> "Generating AI description. This may take about 2 to 3 minutes. " +
         if (isBackgroundGeneration) "You can leave the app. A notification will tell you when it is ready." else "Keep the app open. You can continue reviewing or writing."
 }

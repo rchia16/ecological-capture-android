@@ -1,5 +1,19 @@
 # Phase 3 running checklist
 
+## Current direct-upload route, 22 October 2026
+
+The investigator selected direct encrypted phone uploads through Tailscale to GB10, with a separate private researcher catalogue, replacing Firebase/FileSender for new sends. See [current deployment and acceptance notes](../server/deployment/direct/README.md). Historical checkpoint evidence below is retained for its dated scope.
+
+- Synthetic hosted receiving and public/private isolation passed automated checks; both approved researcher accounts were granted access, and the investigator reported that catalogue access works.
+- On 22 October, the investigator confirmed the synthetic phone upload/check passed following enrolment instructions for `SYNTHETIC-PHONE-01` and phone/catalogue status-check instructions. Record this as user-reported acceptance, not a new independently inspected receipt.
+- The investigator subsequently confirmed researcher ZIP download/playback, presence of `video.mp4`, `event.json` and `manifest.json`, and saving shared tags, notes and review status. This is user-reported acceptance, with no new independent package inspection or archival verification inferred.
+- The investigator subsequently confirmed the physical phone interruption/restart/resume and separate cancellation checks passed after receiving the disposable-upload test instructions. Record these as user-reported acceptance; no new independent interruption/cancellation traces were inspected.
+- Updated-version manual acceptance passed (investigator-reported): after editing a disposable description and sending again, both snapshots remained downloadable under All snapshots, tags/notes were shared across versions, and review status remained separate per snapshot. No additional independent source-byte inspection or archival verification is inferred.
+- Next: SmolVLM2 description-quality and affected TalkBack/enlarged-text acceptance. Permanent study key custody/recovery, approved independent backup/archive, retained-app recovery and participant-use governance remain outstanding.
+- Before participant use: permanent study key custody and recovery, approved independent backup/archive, retained-app recovery, and hosting/retention/withdrawal/ethics decisions remain outstanding.
+
+## Historical checkpoint checklist
+
 Updated: 2026-10-16. This is the current checklist; older report sections describe their dated state. Deferred does not mean passed. Update this file after each checkpoint and keep incomplete items until actual evidence arrives.
 
 | Item | Status / evidence still needed | Due before |

@@ -176,6 +176,7 @@ class Phase1RecoveryTest {
         override suspend fun markExportsPurged(clipId: String) = Unit
         override suspend fun eraseAnnotations(clipId: String) = Unit
         override suspend fun eraseVlmRuns(clipId: String) = Unit
+        override suspend fun eraseContext(clipId: String) = Unit
         override suspend fun deletedClips(): List<ClipEntity> = rows.value.filter { it.approvalState == "DELETED" }
         val rows = MutableStateFlow<List<ClipEntity>>(emptyList())
         var failInserts = false

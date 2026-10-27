@@ -69,6 +69,7 @@ fun ClipReviewScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val description by viewModel.descriptionEditor.state.collectAsStateWithLifecycle()
     val ai by viewModel.vlmReview.state.collectAsStateWithLifecycle()
+    val clipContext by viewModel.clipContext.collectAsStateWithLifecycle()
     val automaticPreparation by viewModel.automaticPreparationEnabled.collectAsStateWithLifecycle()
     val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val view = LocalView.current
@@ -79,11 +80,12 @@ fun ClipReviewScreen(
     var releasePlayer by remember { mutableStateOf<(() -> Unit)?>(null) }
     val descriptionActionFocus = remember { FocusRequester() }
     var editorWasOpen by remember { mutableStateOf(false) }
+    var reminderOpen by remember(clip?.clipId) { mutableStateOf(false) }
     val canDecide = clip != null && !state.isSaving &&
         clip.approvalState == ApprovalState.UNDECIDED &&
         clip.reviewState in setOf(ReviewState.UNREVIEWED, ReviewState.DEFERRED)
 
-    BackHandler(enabled = description.draft == null) { if (!state.isSaving) onBack() }
+    BackHandler(enabled = description.draft == null && !reminderOpen) { if (!state.isSaving) onBack() }
     LaunchedEffect(state.error) { state.error?.let(onError) }
     LaunchedEffect(description.error) { description.error?.let(onError) }
     LaunchedEffect(ai.error) { ai.error?.let(onError) }
@@ -113,19 +115,27 @@ fun ClipReviewScreen(
             descriptionActionFocus.requestFocus()
         }
     }
-    if (description.draft != null) {
-        DescriptionEditorScreen(
-            state = description, ai = ai,
+    if (reminderOpen && clip != null) {
+        ClipReminderScreen(
+            clip = clip,
+            context = clipContext,
+            ai = ai,
             isCaptureBusy = isCaptureBusy,
+            onBack = { reminderOpen = false },
+            onSaveSuburb = viewModel::saveManualSuburb,
+            onGenerate = { if (!isCaptureBusy) viewModel.vlmReview.generate(clip.videoFile) },
+            onCancelGeneration = viewModel.vlmReview::cancel,
+            onOutputVisible = viewModel.vlmReview::onOutputVisible,
+        )
+        return
+    }
+    if (description.draft != null) {
+        ParticipantAnnotationScreen(
+            state = description,
             onTextChanged = viewModel.descriptionEditor::changeText,
             onSave = viewModel.descriptionEditor::save,
             onCancel = viewModel.descriptionEditor::cancelEditing,
-            onGenerate = { if (!isCaptureBusy) clip?.let { viewModel.vlmReview.generate(it.videoFile) } },
-            onCancelGeneration = viewModel.vlmReview::cancel,
-            onLeaveGeneration = viewModel.vlmReview::cancelForeground,
-            onUse = viewModel.vlmReview::useAsStartingPoint,
-            onReject = viewModel.vlmReview::ignore,
-            onOutputVisible = viewModel.vlmReview::onOutputVisible,
+            onReminder = { onPlaybackStateChanged(false); reminderOpen = true },
         )
         return
     }
@@ -141,7 +151,7 @@ fun ClipReviewScreen(
                     Text("Recording unavailable.", fontSize = 21.sp)
                 } else {
                     Text(
-                        "Recorded: ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date.from(clip.createdAt))}\n" +
+                        "Recorded: ${DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.SHORT).format(Date.from(clip.createdAt))}\n" +
                             "${clip.durationMs / 1000} seconds · ${clip.reviewState.name.lowercase().replace('_', ' ')}",
                         fontSize = 16.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -190,15 +200,15 @@ fun ClipReviewScreen(
                                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         }
                         if (clip != null) {
-                            Text("YOUR DESCRIPTION", fontSize = 21.sp,
+                            Text("YOUR ANNOTATION", fontSize = 21.sp,
                                 modifier = Modifier.semantics { heading() })
                             Text(
                                 if (description.isLoading) "Loading description…"
-                                else description.annotation?.text ?: "No description added.",
+                                else description.annotation?.text ?: "No annotation added.",
                                 fontSize = 18.sp,
                             )
                             AiPreparationStatus(ai, viewModel.vlmReview::cancel,
-                                "AI suggestion ready. Open Add/Edit Description to review it.")
+                                "Visual reminder ready. Open Clip reminder to read or listen.")
                             if (description.draft == null) {
                                 description.error?.let { message ->
                                     Text(message, fontSize = 18.sp,
@@ -210,8 +220,10 @@ fun ClipReviewScreen(
                 }
                 val actions = buildList {
                     if (clip != null) {
+                        add(ReviewAction("CLIP REMINDER", !state.isSaving,
+                            { onPlaybackStateChanged(false); reminderOpen = true }))
                         add(ReviewAction(
-                            if (description.annotation == null) "ADD DESCRIPTION" else "EDIT DESCRIPTION",
+                            if (description.annotation == null) "ADD ANNOTATION" else "EDIT ANNOTATION",
                             !description.isLoading && !description.isSaving && description.error == null &&
                                 !state.isSaving && clip.approvalState != ApprovalState.DELETED,
                             viewModel.descriptionEditor::startEditing,

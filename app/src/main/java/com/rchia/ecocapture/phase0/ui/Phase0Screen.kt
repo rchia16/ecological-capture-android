@@ -37,6 +37,7 @@ fun Phase0Screen(
     onStartCamera: () -> Unit,
     onReviewRecordings: () -> Unit,
     onApprovedRecordings: () -> Unit,
+    onSettings: () -> Unit,
     pendingCount: Int,
     reviewQueueError: String? = null,
 ) {
@@ -57,7 +58,7 @@ fun Phase0Screen(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Android Phase 1",
+                    text = "Test Only - No Ethics.",
                     fontSize = 22.sp,
                 )
 
@@ -71,6 +72,8 @@ fun Phase0Screen(
                 Text("$pendingCount recordings waiting", fontSize = 18.sp)
                 BigButton(text = "APPROVED RECORDINGS", description = "Approved recordings and send status.",
                     enabled = !state.isRecordingRequested && !state.isFinalizingRecording, onClick = onApprovedRecordings)
+                BigButton(text = "SETTINGS", description = "Study enrolment and recording settings.",
+                    enabled = !state.isRecordingRequested && !state.isFinalizingRecording, onClick = onSettings)
                 reviewQueueError?.let { Text(it, fontSize = 18.sp, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
 
                 StatusCard(
@@ -210,8 +213,7 @@ fun Phase0Screen(
                 }
 
                 Text(
-                    text = "Recordings and review decisions are saved in this app's private local storage. " +
-                        "There is no participant upload, annotation, VLM, or backend in this build.",
+                    text = "Experimental software only.",
                     fontSize = 17.sp,
                 )
             }

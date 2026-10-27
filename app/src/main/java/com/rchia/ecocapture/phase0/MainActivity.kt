@@ -1,6 +1,9 @@
 package com.rchia.ecocapture.phase0
 
 import android.Manifest.permission.BLUETOOTH_CONNECT
+import android.Manifest.permission.ACCESS_COARSE_LOCATION
+import android.Manifest.permission.CAMERA
+import android.Manifest.permission.RECORD_AUDIO
 import android.os.Bundle
 import android.os.Build
 import android.content.Intent
@@ -40,12 +43,14 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 class MainActivity : ComponentActivity() {
 
     companion object {
-        // BLUETOOTH and INTERNET are normal permissions. Only CONNECT needs a
-        // runtime prompt on the Android versions supported by this app.
+        // Bluetooth is needed for the glasses session. Capture-related permissions
+        // are requested once on first launch, independently of Bluetooth approval.
         val REQUIRED_PERMISSIONS = arrayOf(BLUETOOTH_CONNECT)
+        val FIRST_LAUNCH_PERMISSIONS = arrayOf(ACCESS_COARSE_LOCATION, CAMERA, RECORD_AUDIO)
     }
 
     private var startupRequested = false
+    private var firstLaunchPermissionsRequested = false
     private var wearablesInitializationStarted = false
 
     private val viewModel: Phase0ViewModel by viewModels()
@@ -89,7 +94,21 @@ class MainActivity : ComponentActivity() {
                     "Bluetooth permissions are required before the glasses can be used."
                 )
             }
+            requestCapturePermissionsOnce()
         }
+
+    private val capturePermissionsLauncher = registerForActivityResult(RequestMultiplePermissions()) {
+        getSharedPreferences("permission_onboarding", MODE_PRIVATE).edit()
+            .putBoolean("capture_permissions_requested_v1", true).apply()
+    }
+
+    private fun requestCapturePermissionsOnce() {
+        if (firstLaunchPermissionsRequested) return
+        val preferences = getSharedPreferences("permission_onboarding", MODE_PRIVATE)
+        if (preferences.getBoolean("capture_permissions_requested_v1", false)) return
+        firstLaunchPermissionsRequested = true
+        capturePermissionsLauncher.launch(FIRST_LAUNCH_PERMISSIONS)
+    }
 
     private val permissionMutex = Mutex()
     private var wearablesPermissionContinuation: CancellableContinuation<PermissionStatus>? = null
@@ -166,13 +185,15 @@ class MainActivity : ComponentActivity() {
                     chargingOnly = chargingOnly,
                     onBackgroundPreparationChanged = ::changeBackgroundPreparation,
                     onChargingOnlyChanged = clipReviewViewModel::setChargingOnly,
+                    onStudyEnrolment = if (transferViewModel.liveSending) {
+                        { transferViewModel.enrol(this) }
+                    } else null,
                     onBack = { showingAiSettings = false },
                 )
             } else if (showingReviewQueue) {
                 ReviewQueueScreen(
                     automaticPreparationStatus = automaticPreparationStatus,
                     viewModel = reviewQueueViewModel,
-                    onSettings = { showingAiSettings = true },
                     onBack = { showingReviewQueue = false },
                     onClipSelected = {
                         clipReviewViewModel.selectClip(it.clipId)
@@ -186,6 +207,7 @@ class MainActivity : ComponentActivity() {
                     onStartCamera = { viewModel.startCamera(::requestWearablesPermission) },
                     onReviewRecordings = { showingReviewQueue = true },
                     onApprovedRecordings = { showingApprovedRecordings = true },
+                    onSettings = { showingAiSettings = true },
                     pendingCount = queueState.clips.size,
                     reviewQueueError = queueState.error,
                 )

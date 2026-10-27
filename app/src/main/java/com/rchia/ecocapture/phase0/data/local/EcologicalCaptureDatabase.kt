@@ -8,15 +8,24 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(entities = [ClipEntity::class, VlmRunEntity::class, AnnotationEntity::class,
-    ExportSnapshotEntity::class, TransferJobEntity::class], version = 4, exportSchema = false)
+    ExportSnapshotEntity::class, TransferJobEntity::class, ClipContextEntity::class], version = 5, exportSchema = false)
 abstract class EcologicalCaptureDatabase : RoomDatabase() {
     abstract fun clipDao(): ClipDao
     abstract fun vlmRunDao(): VlmRunDao
     abstract fun annotationDao(): AnnotationDao
     abstract fun exportSnapshotDao(): ExportSnapshotDao
     abstract fun transferJobDao(): TransferJobDao
+    abstract fun clipContextDao(): ClipContextDao
 
     companion object {
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS clip_contexts (
+                    clipId TEXT NOT NULL PRIMARY KEY, recordingTimeZoneId TEXT,
+                    suburb TEXT, locationSource TEXT NOT NULL, updatedAtEpochMs INTEGER NOT NULL
+                )""".trimIndent())
+            }
+        }
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 for (column in listOf("encryptedArtifactPath", "ciphertextSha256", "encryptionKeyVersions", "remoteReceiptJson"))
@@ -74,7 +83,7 @@ abstract class EcologicalCaptureDatabase : RoomDatabase() {
                     context.applicationContext,
                     EcologicalCaptureDatabase::class.java,
                     "ecological_capture.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).build().also { instance = it }
             }
     }
 }

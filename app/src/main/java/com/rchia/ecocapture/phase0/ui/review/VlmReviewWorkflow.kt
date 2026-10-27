@@ -99,8 +99,7 @@ class VlmReviewWorkflow(
 
     fun generate(videoFile: File, automatic: Boolean = false) {
         val clipId = selectedClipId ?: return
-        if (generation?.isActive == true || state.value.isGenerating || state.value.isLoading || state.value.isUpdating ||
-            (state.value.run != null && state.value.run?.disposition != VlmDisposition.IGNORED.name)) return
+        if (generation?.isActive == true || state.value.isGenerating || state.value.isLoading || state.value.isUpdating) return
         val selectedSession = session
         if (background != null && allowBackground()) {
             update(selectedSession) { it.copy(phase = VlmReviewPhase.QUEUED, error = null,

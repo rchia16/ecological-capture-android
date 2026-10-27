@@ -13,6 +13,8 @@ import com.rchia.ecocapture.phase0.vlm.VlmRuntimeMode
 import com.rchia.ecocapture.phase0.vlm.background.BackgroundAiPreparation
 import com.rchia.ecocapture.phase0.vlm.background.AiPreparationNotifications
 import com.rchia.ecocapture.phase0.data.local.EcologicalCaptureDatabase
+import com.rchia.ecocapture.phase0.data.local.ClipContextEntity
+import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +35,23 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
     val backgroundPreparationEnabled = aiPreferences.backgroundEnabled
     val chargingOnly = aiPreferences.chargingOnly
     private val repository = RoomClipRepository(EcologicalCaptureDatabase.getInstance(application).clipDao())
+    private val database = EcologicalCaptureDatabase.getInstance(application)
+    private val _clipContext = MutableStateFlow<ClipContextEntity?>(null)
+    val clipContext = _clipContext.asStateFlow()
+    private var contextObservation: Job? = null
+
+    fun saveManualSuburb(text: String) {
+        val clipId = _uiState.value.clip?.clipId ?: return
+        val suburb = text.trim().take(100).ifBlank { null }
+        viewModelScope.launch(Dispatchers.IO) {
+            database.withTransaction {
+                val dao = database.clipContextDao()
+                dao.insertLegacyContext(clipId, System.currentTimeMillis())
+                dao.setManualSuburb(clipId, suburb,
+                    if (suburb == null) "MANUAL_EMPTY" else "MANUAL", System.currentTimeMillis())
+            }
+        }
+    }
     val descriptionEditor = DescriptionEditor(
         AnnotationRepository(EcologicalCaptureDatabase.getInstance(application)), viewModelScope,
     )
@@ -136,6 +155,11 @@ class ClipReviewViewModel(application: Application) : AndroidViewModel(applicati
 
     fun selectClip(clipId: String) {
         observation?.cancel()
+        contextObservation?.cancel()
+        _clipContext.value = null
+        contextObservation = viewModelScope.launch {
+            database.clipContextDao().observe(clipId).collect { _clipContext.value = it }
+        }
         descriptionEditor.selectClip(clipId)
         vlmReview.selectClip(clipId)
         _uiState.value = ClipReviewUiState()
